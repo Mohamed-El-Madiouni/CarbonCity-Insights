@@ -12,7 +12,11 @@ import os
 from contextlib import asynccontextmanager
 
 from databases import Database
+from dotenv import load_dotenv
 from fastapi import FastAPI
+
+# Load environment variables from .env file in local development
+load_dotenv()
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL")
