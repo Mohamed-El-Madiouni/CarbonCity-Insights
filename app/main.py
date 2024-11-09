@@ -8,20 +8,45 @@ Attributes:
     app (FastAPI): The main application instance for CarbonCity Insights.
 """
 
+import os
+from contextlib import asynccontextmanager
+
+from databases import Database
 from fastapi import FastAPI
 
-# Initialize FastAPI application
-app = FastAPI()
+# Database URL from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL")
+database = Database(DATABASE_URL)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Lifespan context manager to manage database connection.
+
+    This function handles the lifecycle events of the FastAPI app.
+    It connects to the database when the app starts and disconnects when the app stops.
+
+    :param _app: FastAPI application instance.
+    """
+    # Connect to the database at startup
+    await database.connect()
+    yield
+    # Disconnect from the database at shutdown
+    await database.disconnect()
+
+
+# Initialize FastAPI application with lifespan handler
+app = FastAPI(lifespan=lifespan)
 
 
 # Root endpoint
 @app.get("/")
-def read_root():
+async def read_root():
     """
     Root endpoint of the CarbonCity Insights API.
 
     :returns:
         A dictionary with a welcome message indicating the API is active.
     """
-    # Returning a welcome message for the root endpoint
     return {"message": "Welcome to CarbonCity Insights API!"}
