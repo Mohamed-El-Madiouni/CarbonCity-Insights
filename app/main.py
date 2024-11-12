@@ -54,3 +54,18 @@ async def read_root():
         A dictionary with a welcome message indicating the API is active.
     """
     return {"message": "Welcome to CarbonCity Insights API!"}
+
+
+# Test database connection endpoint
+@app.get("/db_test")
+async def db_test():
+    """
+    Test endpoint to check database connection.
+    This endpoint executes a simple query to confirm the database connection
+    is active and returns a success message.
+    :returns:
+        dict: A message indicating the status of the database connection.
+    """
+    query = "SELECT 'Connection successful!' as message"
+    result = await database.fetch_one(query)
+    return {"message": result["message"]}
