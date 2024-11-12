@@ -69,6 +69,12 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt  # Install required packages
 
-      - name: Deploy to Platform
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
-          echo "Deployment command here"  # Placeholder for the actual deployment command
+          curl -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys
