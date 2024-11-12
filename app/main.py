@@ -60,12 +60,15 @@ async def read_root():
 @app.get("/db_test")
 async def db_test():
     """
-    Test endpoint to check database connection.
-    This endpoint executes a simple query to confirm the database connection
-    is active and returns a success message.
+    Test endpoint to check the presence of tables in the database.
+
+    This endpoint queries the database for existing tables in the public schema
+    and returns a list of table names, confirming successful database connection.
+
     :returns:
-        dict: A message indicating the status of the database connection.
+        A dictionary with a list of table names in the public schema.
     """
-    query = "SELECT 'Connection successful!' as message"
-    result = await database.fetch_one(query)
-    return {"message": result["message"]}
+    query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+    tables = await database.fetch_all(query)
+    table_names = [table["table_name"] for table in tables]
+    return {"tables": table_names}
