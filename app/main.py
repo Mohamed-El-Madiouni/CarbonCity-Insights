@@ -8,19 +8,11 @@ Attributes:
     app (FastAPI): The main application instance for CarbonCity Insights.
 """
 
-import os
 from contextlib import asynccontextmanager
 
-from databases import Database
-from dotenv import load_dotenv
 from fastapi import FastAPI
 
-# Load environment variables from .env file in local development
-load_dotenv()
-
-# Database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL")
-database = Database(DATABASE_URL)
+from app.database import database
 
 
 @asynccontextmanager
@@ -68,7 +60,9 @@ async def db_test():
     :returns:
         A dictionary with a list of table names in the public schema.
     """
-    query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+    query = (
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+    )
     tables = await database.fetch_all(query)
     table_names = [table["table_name"] for table in tables]
     return {"tables": table_names}
