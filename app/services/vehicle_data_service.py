@@ -127,6 +127,7 @@ async def check_duplicate_entry(year, model_name, make_name):
 async def fetch_emission_estimate(model_id):
     """
     Fetch emission estimate data from the Carbon Interface API for a specific vehicle model ID.
+    Stop execution if API request limit is reached (status 401).
     """
     estimate_url = "https://www.carboninterface.com/api/v1/estimates"
     estimate_payload = {
@@ -140,6 +141,9 @@ async def fetch_emission_estimate(model_id):
     )
     if response.status_code == 201:
         return response.json()["data"]["attributes"]
+    if response.status_code == 401:
+        print("API request limit reached. Stopping execution.")
+        raise SystemExit("Stopping execution due to API request limit.")
     print(
         f"Failed to fetch emission estimate. Status: {response.status_code}, "
         f"Message: {response.text}"
