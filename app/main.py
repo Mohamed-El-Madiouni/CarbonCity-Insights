@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import database
+from app.routes import vehicle_routes
 
 
 @asynccontextmanager
@@ -34,6 +35,9 @@ async def lifespan(_app: FastAPI):
 
 # Initialize FastAPI application with lifespan handler
 app = FastAPI(lifespan=lifespan)
+
+# Include the routes
+app.include_router(vehicle_routes.router)
 
 
 # Root endpoint
