@@ -7,7 +7,9 @@ ensuring no duplicate entries.
 """
 
 import os
+import smtplib
 import uuid
+from email.message import EmailMessage
 
 import requests
 from databases import Database
@@ -17,6 +19,8 @@ from dotenv import load_dotenv
 load_dotenv()
 CARBON_INTERFACE_API_KEY = os.getenv("CARBON_INTERFACE_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL")  # Email for notifications
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # SMTP password for email notifications
 
 # Database connection
 database = Database(DATABASE_URL)
@@ -26,6 +30,24 @@ HEADERS = {
     "Authorization": f"Bearer {CARBON_INTERFACE_API_KEY}",
     "Content-Type": "application/json",
 }
+
+
+def send_notification(subject, body):
+    """
+    Send a notification email with the specified subject and body.
+
+    :param subject: str, subject of the email
+    :param body: str, body content of the email
+    """
+    msg = EmailMessage()
+    msg.set_content(body)
+    msg["Subject"] = subject
+    msg["From"] = NOTIFICATION_EMAIL
+    msg["To"] = NOTIFICATION_EMAIL
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(NOTIFICATION_EMAIL, EMAIL_PASSWORD)
+        smtp.send_message(msg)
 
 
 async def fetch_vehicle_makes():
@@ -127,7 +149,8 @@ async def check_duplicate_entry(year, model_name, make_name):
 async def fetch_emission_estimate(model_id):
     """
     Fetch emission estimate data from the Carbon Interface API for a specific vehicle model ID.
-    Stop execution if API request limit is reached (status 401).
+    Stop execution and send a single email notification if API request limit is reached
+    (status 401).
     """
     estimate_url = "https://www.carboninterface.com/api/v1/estimates"
     estimate_payload = {
@@ -143,6 +166,11 @@ async def fetch_emission_estimate(model_id):
         return response.json()["data"]["attributes"]
     if response.status_code == 401:
         print("API request limit reached. Stopping execution.")
+        send_notification(
+            subject="API Request Limit Reached",
+            body="Your account has hit its monthly API request limit. "
+            "Please upgrade to make more requests.",
+        )
         raise SystemExit("Stopping execution due to API request limit.")
     print(
         f"Failed to fetch emission estimate. Status: {response.status_code}, "
@@ -157,10 +185,10 @@ async def insert_vehicle_emission_record(
     """
     Insert a new record into the 'vehicle_emissions' table with the computed emissions data.
     """
-    insert_query = """INSERT INTO vehicle_emissions
-    (id, vehicle_model_id, vehicle_make_name, vehicle_model_name, year, distance_value, distance_unit, carbon_emission_g) 
-    VALUES (:id, :model_id, :make_name, :model_name, :year, :distance_value, 
-    :distance_unit, :carbon_emission_g)"""
+    insert_query = """INSERT INTO vehicle_emissions (id, vehicle_model_id, vehicle_make_name,
+    vehicle_model_name, year, distance_value, distance_unit, carbon_emission_g) VALUES (:id, 
+    :model_id, :make_name, :model_name, :year, :distance_value, :distance_unit, 
+    :carbon_emission_g)"""
     values = {
         "id": str(uuid.uuid4()),
         "model_id": model_id,
