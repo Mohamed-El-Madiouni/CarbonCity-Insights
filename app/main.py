@@ -8,12 +8,37 @@ Attributes:
     app (FastAPI): The main application instance for CarbonCity Insights.
 """
 
+import logging
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from app.database import database
 from app.routes import vehicle_routes
+
+# Configure log directory
+log_dir = os.path.abspath(os.path.join(__file__, "../../log"))
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Configure logger
+log_path = os.path.join(log_dir, "app.log")
+main_logger = logging.getLogger("main_logger")
+main_logger.setLevel(logging.INFO)
+
+# File and console handlers for main_logger
+file_handler = logging.FileHandler(log_path)
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+console_handler = logging.StreamHandler()
+
+# Adding handlers to main_logger
+main_logger.addHandler(file_handler)
+main_logger.addHandler(console_handler)
+
+main_logger.info("Starting CarbonCity Insights API...")
 
 
 @asynccontextmanager
@@ -27,10 +52,19 @@ async def lifespan(_app: FastAPI):
     :param _app: FastAPI application instance.
     """
     # Connect to the database at startup
-    await database.connect()
-    yield
+    try:
+        main_logger.info("Connecting to the database...")
+        await database.connect()
+        main_logger.info("Database connection established.")
+        yield
+    except Exception as e:
+        main_logger.error("Error during startup: %s", e)
+        raise
     # Disconnect from the database at shutdown
-    await database.disconnect()
+    finally:
+        main_logger.info("Disconnecting from the database...")
+        await database.disconnect()
+        main_logger.info("Database connection closed.")
 
 
 # Initialize FastAPI application with lifespan handler
@@ -38,6 +72,7 @@ app = FastAPI(lifespan=lifespan)
 
 # Include the routes
 app.include_router(vehicle_routes.router)
+main_logger.info("Router for vehicle_routes included in the app.")
 
 
 # Root endpoint
@@ -49,6 +84,7 @@ async def read_root():
     :returns:
         A dictionary with a welcome message indicating the API is active.
     """
+    main_logger.info("Received request on root endpoint.")
     return {"message": "Welcome to CarbonCity Insights API!"}
 
 
@@ -67,6 +103,12 @@ async def db_test():
     query = (
         "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )
-    tables = await database.fetch_all(query)
-    table_names = [table["table_name"] for table in tables]
-    return {"tables": table_names}
+    try:
+        main_logger.info("Executing query to fetch table names.")
+        tables = await database.fetch_all(query)
+        table_names = [table["table_name"] for table in tables]
+        main_logger.info("Successfully retrieved table names: %s", table_names)
+        return {"tables": table_names}
+    except Exception as e:
+        main_logger.error("Failed to retrieve table names: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database query failed.{e}") from e
