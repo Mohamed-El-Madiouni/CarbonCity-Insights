@@ -30,7 +30,7 @@ async def test_get_vehicle_emissions():
             # Test default request without filters
             response = await client.get("/vehicle_emissions")
             assert response.status_code == 200
-            assert isinstance(response.json(), list)
+            assert isinstance(response.json(), dict)
 
             # Validate schema of each item in response
             expected_keys = {
@@ -43,7 +43,7 @@ async def test_get_vehicle_emissions():
                 "distance_unit",
                 "carbon_emission_g",
             }
-            for item in response.json():
+            for item in response.json()["data"]:
                 assert expected_keys.issubset(item.keys())
 
             # Test pagination limit and offset
@@ -56,13 +56,13 @@ async def test_get_vehicle_emissions():
                 "/vehicle_emissions?vehicle_make_name=Ferrari"
             )
             assert response_filtered_make.status_code == 200
-            for item in response_filtered_make.json():
+            for item in response_filtered_make.json()["data"]:
                 assert item["vehicle_make_name"] == "Ferrari"
 
             # Test filtering by year
             response_filtered_year = await client.get("/vehicle_emissions?year=2010")
             assert response_filtered_year.status_code == 200
-            for item in response_filtered_year.json():
+            for item in response_filtered_year.json()["data"]:
                 assert item["year"] == 2010
 
             # Test non-existent filter
@@ -70,4 +70,4 @@ async def test_get_vehicle_emissions():
                 "/vehicle_emissions?vehicle_make_name=NonExistentMake"
             )
             assert response_non_existent.status_code == 200
-            assert response_non_existent.json() == []
+            assert response_non_existent.json() == {}

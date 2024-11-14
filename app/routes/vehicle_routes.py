@@ -45,34 +45,34 @@ async def get_vehicle_emissions(
         None, description="Filter by vehicle make"
     ),
     year: Optional[int] = Query(None, description="Filter by vehicle model year"),
-    limit: int = Query(10, description="Number of results per page", gt=0),
-    offset: int = Query(
-        0, description="Number of results to skip for pagination", ge=0
+    cursor: Optional[str] = Query(
+        None, description="ID of the last record from the previous page"
     ),
+    limit: int = Query(10, le=100, description="Maximum number of results to retrieve"),
 ):
     """
     Retrieve vehicle emissions data with optional filters and pagination.
 
     :param vehicle_make_name: (str) Filter results by the vehicle make name.
     :param year: (int) Filter results by the vehicle model year.
-    :param limit: (int) Limit the number of results returned.
-    :param offset: (int) Skip a number of results for pagination.
+    :param cursor: (str) ID of the last record from the previous page.
+    :param limit: (int) Maximum number of results to retrieve per page (default is 10, max is 100).
 
-    :return: List of dictionaries containing vehicle emissions data.
+    :return: List of vehicle emissions data with pagination metadata.
     """
     routes_logger.info(
         "Received request for vehicle emissions with filters - Make: %s, Year: %s, "
-        "Limit: %d, Offset: %d",
+        "cursor: %s, Limit: %d",
         vehicle_make_name,
         year,
+        cursor,
         limit,
-        offset,
     )
 
     # Base query
     base_query = "SELECT * FROM vehicle_emissions"
     conditions = []
-    values = {"limit": limit, "offset": offset}
+    values = {"limit": limit}
 
     # Add filters conditionally
     if vehicle_make_name:
@@ -84,12 +84,18 @@ async def get_vehicle_emissions(
         values["year"] = year
         routes_logger.debug("Filter applied for year: %d", year)
 
+    # Add cursor-based pagination condition
+    if cursor:
+        conditions.append("id > :cursor")
+        values["cursor"] = cursor
+
     # Combine base query with conditions if any
     if conditions:
         base_query += " WHERE " + " AND ".join(conditions)
 
-    # Add limit and offset
-    base_query += " LIMIT :limit OFFSET :offset"
+    # Order by ID for consistent cursor behavior and apply limit
+    base_query += " ORDER BY id ASC LIMIT :limit"
+    values["limit"] = limit + 1
     routes_logger.debug("Executing query: %s with values %s", base_query, values)
 
     # Execute query
@@ -98,5 +104,12 @@ async def get_vehicle_emissions(
         "Query executed successfully. Number of results: %d", len(results)
     )
 
+    # Set next cursor to the last item's ID in the current result set if results exist
+    if len(results) == limit + 1:
+        next_cursor = results[-2]["id"]
+        results = results[:-1]
+    else:
+        next_cursor = None
+
     # Ensure a 200 response with an empty list if no data is found
-    return results if results else []
+    return {"data": results, "next_cursor": next_cursor} if results else {}
