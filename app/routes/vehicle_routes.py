@@ -101,7 +101,7 @@ async def get_vehicle_emissions(
     # Execute query
     results = await database.fetch_all(query=base_query, values=values)
     routes_logger.info(
-        "Query executed successfully. Number of results: %d", len(results)
+        "Query executed successfully. Number of results: %d", len(results)-1
     )
 
     # Set next cursor to the last item's ID in the current result set if results exist
@@ -112,4 +112,4 @@ async def get_vehicle_emissions(
         next_cursor = None
 
     # Ensure a 200 response with an empty list if no data is found
-    return {"data": results, "next_cursor": next_cursor} if results else {}
+    return {"data": results, "next_cursor": next_cursor} if results else {"data": [], "next_cursor": None}

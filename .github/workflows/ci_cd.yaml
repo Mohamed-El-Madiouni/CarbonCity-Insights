@@ -39,7 +39,7 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint $(git ls-files '*.py')  # Run pylint for code linting and quality checks
+           PYTHONPATH=. pylint $(git ls-files '*.py')  # Run pylint for code linting and quality checks
 
   unit-tests:
     name: Run Unit Tests  # Job to run unit tests with pytest
