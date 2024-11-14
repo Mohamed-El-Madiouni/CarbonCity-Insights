@@ -7,8 +7,9 @@ Supports optional filtering by vehicle make and year, with pagination.
 
 from typing import Optional
 
+from fastapi import APIRouter, Query
+
 from app.database import database
-from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
@@ -57,8 +58,5 @@ async def get_vehicle_emissions(
     # Execute query
     results = await database.fetch_all(query=base_query, values=values)
 
-    # Raise an HTTPException if no results are found
-    if not results:
-        raise HTTPException(status_code=404, detail="No vehicle emissions data found.")
-
-    return results
+    # Ensure a 200 response with an empty list if no data is found
+    return results if results else []
