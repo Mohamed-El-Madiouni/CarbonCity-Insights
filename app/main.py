@@ -12,6 +12,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
 from app.database import database
@@ -39,6 +40,17 @@ main_logger.addHandler(file_handler)
 main_logger.addHandler(console_handler)
 
 main_logger.info("Starting CarbonCity Insights API...")
+
+# Load environment variables
+load_dotenv()
+
+# Determine the application environment
+APP_ENV = os.getenv("APP_ENV", "production")
+
+if APP_ENV not in {"production", "test"}:
+    main_logger.error("Invalid APP_ENV: %s. Must be 'production', or 'test'.", APP_ENV)
+
+main_logger.info("APP_ENV: %s", APP_ENV)
 
 
 @asynccontextmanager

@@ -65,9 +65,9 @@ jobs:
 
       - name: Run pytest
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Ensure DATABASE_URL is accessible to pytest
+          DATABASE_TEST_URL: ${{ secrets.DATABASE_TEST_URL }}  # Ensure DATABASE_URL is accessible to pytest
         run: |
-          PYTHONPATH=. pytest  # Run unit tests with pytest
+          PYTHONPATH=. APP_ENV=test pytest  # Run unit tests with pytest
 
   deployment:
     name: Deploy API  # Deployment job to push the application to the cloud
