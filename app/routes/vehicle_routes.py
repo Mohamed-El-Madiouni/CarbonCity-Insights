@@ -53,8 +53,10 @@ async def get_vehicle_makes():
 
     :return: A list of all vehicle makes sorted alphabetically.
     """
-    query = ("SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
-             "ORDER BY vehicle_make_name ASC")
+    query = (
+        "SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
+        "ORDER BY vehicle_make_name ASC"
+    )
     makes = await database.fetch_all(query)
     return {"makes": [make["vehicle_make_name"] for make in makes]}
 
@@ -75,6 +77,25 @@ async def get_vehicle_models(make: str):
     """
     models = await database.fetch_all(query, values={"make": make})
     return {"models": [model["vehicle_model_name"] for model in models]}
+
+
+@router.get("/vehicle_emissions/years")
+async def get_vehicle_years(make: str, model: str):
+    """
+    Fetch unique years for a given make and model.
+
+    :param make: Vehicle make name.
+    :param model: Vehicle model name.
+    :return: A list of years for the given make and model.
+    """
+    query = """
+        SELECT DISTINCT year
+        FROM vehicle_emissions
+        WHERE vehicle_make_name = :make AND vehicle_model_name = :model
+        ORDER BY year ASC
+    """
+    years = await database.fetch_all(query, values={"make": make, "model": model})
+    return {"years": [year["year"] for year in years]}
 
 
 @router.get("/vehicle_emissions")
