@@ -59,6 +59,24 @@ async def get_vehicle_makes():
     return {"makes": [make["vehicle_make_name"] for make in makes]}
 
 
+@router.get("/vehicle_emissions/models")
+async def get_vehicle_models(make: str):
+    """
+    Fetch unique vehicle models for a given make.
+
+    :param make: Vehicle make name (e.g., 'Toyota').
+    :return: A list of vehicle models for the given make.
+    """
+    query = """
+        SELECT DISTINCT vehicle_model_name 
+        FROM vehicle_emissions 
+        WHERE vehicle_make_name = :make 
+        ORDER BY vehicle_model_name ASC
+    """
+    models = await database.fetch_all(query, values={"make": make})
+    return {"models": [model["vehicle_model_name"] for model in models]}
+
+
 @router.get("/vehicle_emissions")
 async def get_vehicle_emissions(
     vehicle_make_name: Optional[str] = Query(
