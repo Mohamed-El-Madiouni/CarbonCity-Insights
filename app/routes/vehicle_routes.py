@@ -46,6 +46,19 @@ APP_ENV = os.getenv("APP_ENV", "production")
 router = APIRouter()
 
 
+@router.get("/vehicle_emissions/makes")
+async def get_vehicle_makes():
+    """
+    Fetch unique vehicle makes from the database.
+
+    :return: A list of all vehicle makes sorted alphabetically.
+    """
+    query = ("SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
+             "ORDER BY vehicle_make_name ASC")
+    makes = await database.fetch_all(query)
+    return {"makes": [make["vehicle_make_name"] for make in makes]}
+
+
 @router.get("/vehicle_emissions")
 async def get_vehicle_emissions(
     vehicle_make_name: Optional[str] = Query(
