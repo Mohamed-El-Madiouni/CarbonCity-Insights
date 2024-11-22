@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Emissions Comparison</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        select {
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+    </style>
+    <script>
+        async function fetchOptions(endpoint, dropdown) {
+            // Fetch options for dropdowns from the API
+            const response = await fetch(`http://localhost:8000/vehicle_emissions/${endpoint}`);
+            const data = await response.json();
+            console.log(`Fetched data for ${endpoint}:`, data); // Log data
+
+            // Check if the object contains a `makes`, `models`, or other key
+            const items = data.makes || data.models || data.years || [];
+
+            dropdown.innerHTML = "<option value=''>Select</option>"; // Reset dropdown
+            items.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item;
+                option.textContent = item;
+                dropdown.appendChild(option);
+            });
+        }
+
+        async function compareVehicles() {
+            // Get selected values for both vehicles
+            const vehicle1 = {
+                make: document.getElementById("vehicle1-make").value,
+                model: document.getElementById("vehicle1-model").value,
+                year: document.getElementById("vehicle1-year").value
+            };
+            const vehicle2 = {
+                make: document.getElementById("vehicle2-make").value,
+                model: document.getElementById("vehicle2-model").value,
+                year: document.getElementById("vehicle2-year").value
+            };
+
+            // Ensure all fields are filled
+            if (!vehicle1.make || !vehicle1.model || !vehicle1.year || !vehicle2.make || !vehicle2.model || !vehicle2.year) {
+                document.getElementById("result").innerText = "Please select all fields for both vehicles.";
+                return;
+            }
+
+            // Call the compare endpoint
+            try {
+                const response = await fetch("http://localhost:8000/vehicle_emissions/compare", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ vehicle_1: vehicle1, vehicle_2: vehicle2 })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                // Extract message and percentage
+                const { message, percentage_difference } = result.comparison;
+
+                const resultElement = document.getElementById("result");
+                resultElement.innerHTML = ""; // Clear previous results
+
+        // Replace percentage placeholder
+        const formattedMessage = message.replace(/(\d+\.\d+%)/, `<span style="color: ${message.includes("less") ? "green" : "red"};">${percentage_difference}%</span>`)
+
+                resultElement.innerHTML = formattedMessage;
+
+            } catch (error) {
+                document.getElementById("result").innerText = `An error occurred: ${error.message}`;
+            }
+        }
+
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Populate dropdowns for vehicle 1
+            fetchOptions("makes", document.getElementById("vehicle1-make"));
+            fetchOptions("makes", document.getElementById("vehicle2-make"));
+
+            document.getElementById("vehicle1-make").addEventListener("change", () => {
+                fetchOptions(`models?make=${document.getElementById("vehicle1-make").value}`, document.getElementById("vehicle1-model"));
+            });
+            document.getElementById("vehicle1-model").addEventListener("change", () => {
+                fetchOptions(`years?make=${document.getElementById("vehicle1-make").value}&model=${document.getElementById("vehicle1-model").value}`, document.getElementById("vehicle1-year"));
+            });
+
+            // Populate dropdowns for vehicle 2
+            document.getElementById("vehicle2-make").addEventListener("change", () => {
+                fetchOptions(`models?make=${document.getElementById("vehicle2-make").value}`, document.getElementById("vehicle2-model"));
+            });
+            document.getElementById("vehicle2-model").addEventListener("change", () => {
+                fetchOptions(`years?make=${document.getElementById("vehicle2-make").value}&model=${document.getElementById("vehicle2-model").value}`, document.getElementById("vehicle2-year"));
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Compare Vehicle Emissions</h1>
+    <div>
+        <h2>Vehicle 1</h2>
+        <label for="vehicle1-make">Make:</label>
+        <select id="vehicle1-make"></select><br>
+        <label for="vehicle1-model">Model:</label>
+        <select id="vehicle1-model"></select><br>
+        <label for="vehicle1-year">Year:</label>
+        <select id="vehicle1-year"></select>
+    </div>
+    <div>
+        <h2>Vehicle 2</h2>
+        <label for="vehicle2-make">Make:</label>
+        <select id="vehicle2-make"></select><br>
+        <label for="vehicle2-model">Model:</label>
+        <select id="vehicle2-model"></select><br>
+        <label for="vehicle2-year">Year:</label>
+        <select id="vehicle2-year"></select>
+    </div>
+    <button onclick="compareVehicles()">Compare</button>
+    <h3 id="result">
+        <span id="comparison-message"></span>
+        <span id="comparison-percentage"></span>
+    </h3></body>
+</html>
+

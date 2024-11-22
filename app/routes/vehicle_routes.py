@@ -191,6 +191,7 @@ class CompareRequest(BaseModel):
         vehicle_1: Details of the first vehicle, including make, model, and year.
         vehicle_2: Details of the second vehicle, including make, model, and year.
     """
+
     vehicle_1: dict
     vehicle_2: dict
 
@@ -208,6 +209,16 @@ async def compare_vehicles(request: CompareRequest):
         FROM vehicle_emissions
         WHERE vehicle_make_name = :make AND vehicle_model_name = :model AND year = :year
     """
+    # Convert year fields to integers
+    try:
+        request.vehicle_1["year"] = int(request.vehicle_1["year"])
+        request.vehicle_2["year"] = int(request.vehicle_2["year"])
+    except ValueError as e:
+        routes_logger.error("Year must be a valid integer.")
+        raise HTTPException(
+            status_code=400, detail="Year must be a valid integer."
+        ) from e
+
     # Fetch details for vehicle 1
     vehicle_1 = await database.fetch_one(query, values=request.vehicle_1)
     if not vehicle_1:
@@ -232,7 +243,11 @@ async def compare_vehicles(request: CompareRequest):
     )
     # Construct a summary message
     message = (
-        f"The {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
+        f"{vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
+        f"({vehicle_1['year']}) consumption : {vehicle_1['carbon_emission_g']} g/100km.<br><br>"
+        f"{vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
+        f"({vehicle_2['year']}) consumption : {vehicle_2['carbon_emission_g']} g/100km.<br><br>"
+        f"So the {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
         f"({vehicle_1['year']}) emits {abs(percentage_difference)}% "
         f"{'more' if emissions_1 > emissions_2 else 'less'} carbon compared "
         f"to the {vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "

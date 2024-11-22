@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import database
 from app.routes import vehicle_routes
@@ -85,6 +86,18 @@ app = FastAPI(lifespan=lifespan)
 # Include the routes
 app.include_router(vehicle_routes.router)
 main_logger.info("Router for vehicle_routes included in the app.")
+
+
+# Configure CORS
+origins = ["*"]  # Allows all origins (includes file://)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Root endpoint
