@@ -10,7 +10,8 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.database import database
 
@@ -180,3 +181,69 @@ async def get_vehicle_emissions(
         if results
         else {"data": [], "next_cursor": None}
     )
+
+
+class CompareRequest(BaseModel):
+    """
+    Data model for vehicle comparison requests.
+
+    Attributes:
+        vehicle_1: Details of the first vehicle, including make, model, and year.
+        vehicle_2: Details of the second vehicle, including make, model, and year.
+    """
+    vehicle_1: dict
+    vehicle_2: dict
+
+
+@router.post("/vehicle_emissions/compare")
+async def compare_vehicles(request: CompareRequest):
+    """
+    Compare carbon emissions between two vehicles.
+
+    :param request: A JSON payload containing details of the two vehicles to compare.
+    :return: Comparison results, including a percentage difference and a summary message.
+    """
+    query = """
+        SELECT vehicle_make_name, vehicle_model_name, year, carbon_emission_g
+        FROM vehicle_emissions
+        WHERE vehicle_make_name = :make AND vehicle_model_name = :model AND year = :year
+    """
+    # Fetch details for vehicle 1
+    vehicle_1 = await database.fetch_one(query, values=request.vehicle_1)
+    if not vehicle_1:
+        routes_logger.error("Vehicle 1 not found.")
+        raise HTTPException(status_code=404, detail="Vehicle 1 not found.")
+
+    # Fetch details for vehicle 2
+    vehicle_2 = await database.fetch_one(query, values=request.vehicle_2)
+    if not vehicle_2:
+        routes_logger.error("Vehicle 2 not found.")
+        raise HTTPException(status_code=404, detail="Vehicle 2 not found.")
+
+    # Calculate percentage difference
+    emissions_1 = vehicle_1["carbon_emission_g"]
+    emissions_2 = vehicle_2["carbon_emission_g"]
+    if emissions_2 == 0:
+        routes_logger.error("Vehicle 2 emissions data invalid.")
+        raise HTTPException(status_code=400, detail="Vehicle 2 emissions data invalid.")
+
+    percentage_difference = round(
+        ((emissions_1 - emissions_2) / abs(emissions_2)) * 100, 2
+    )
+    # Construct a summary message
+    message = (
+        f"The {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
+        f"({vehicle_1['year']}) emits {abs(percentage_difference)}% "
+        f"{'more' if emissions_1 > emissions_2 else 'less'} carbon compared "
+        f"to the {vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
+        f"({vehicle_2['year']})."
+    )
+
+    return {
+        "vehicle_1": vehicle_1,
+        "vehicle_2": vehicle_2,
+        "comparison": {
+            "message": message,
+            "percentage_difference": abs(percentage_difference),
+        },
+    }
