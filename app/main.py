@@ -82,7 +82,12 @@ async def lifespan(_app: FastAPI):
 
 
 # Initialize FastAPI application with lifespan handler
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="CarbonCity Insights API",
+    description="An API providing vehicle emissions data and comparison features.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 # Include the routes
 app.include_router(vehicle_routes.router)

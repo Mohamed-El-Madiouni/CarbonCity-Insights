@@ -48,7 +48,12 @@ APP_ENV = os.getenv("APP_ENV", "production")
 router = APIRouter()
 
 
-@router.get("/vehicle_emissions/makes")
+@router.get(
+    "/vehicle_emissions/makes",
+    summary="Get vehicle makes",
+    description="Retrieve a list of all available vehicle manufacturers.",
+    tags=["Vehicle Emissions"],
+)
 async def get_vehicle_makes():
     """
     Fetch unique vehicle makes from the database.
@@ -63,12 +68,19 @@ async def get_vehicle_makes():
     return {"makes": [make["vehicle_make_name"] for make in makes]}
 
 
-@router.get("/vehicle_emissions/models")
-async def get_vehicle_models(make: str):
+@router.get(
+    "/vehicle_emissions/models",
+    summary="Get vehicle models",
+    description="Retrieve the list of models for a specific manufacturer.",
+    tags=["Vehicle Emissions"],
+)
+async def get_vehicle_models(
+    make: str = Query(..., description="The manufacturer name (e.g., 'Ferrari').")
+):
     """
     Fetch unique vehicle models for a given make.
 
-    :param make: Vehicle make name (e.g., 'Toyota').
+    :param make: Vehicle make name (e.g., 'Ferrari').
     :return: A list of vehicle models for the given make.
     """
     query = """
@@ -81,8 +93,16 @@ async def get_vehicle_models(make: str):
     return {"models": [model["vehicle_model_name"] for model in models]}
 
 
-@router.get("/vehicle_emissions/years")
-async def get_vehicle_years(make: str, model: str):
+@router.get(
+    "/vehicle_emissions/years",
+    summary="Get vehicle years",
+    description="Retrieve the available years for a specific vehicle make and model.",
+    tags=["Vehicle Emissions"],
+)
+async def get_vehicle_years(
+    make: str = Query(..., description="The manufacturer name (e.g., 'Ferrari')."),
+    model: str = Query(..., description="The vehicle model name (e.g., 'F40')."),
+):
     """
     Fetch unique years for a given make and model.
 
@@ -100,7 +120,13 @@ async def get_vehicle_years(make: str, model: str):
     return {"years": [year["year"] for year in years]}
 
 
-@router.get("/vehicle_emissions")
+@router.get(
+    "/vehicle_emissions",
+    summary="Get vehicle emissions data",
+    description="Retrieve vehicle emissions "
+                "data with optional filters and cursor-based pagination.",
+    tags=["Vehicle Emissions"],
+)
 async def get_vehicle_emissions(
     vehicle_make_name: Optional[str] = Query(
         None, description="Filter by vehicle make"
@@ -197,7 +223,12 @@ class CompareRequest(BaseModel):
     vehicle_2: dict
 
 
-@router.post("/vehicle_emissions/compare")
+@router.post(
+    "/vehicle_emissions/compare",
+    summary="Compare two vehicles",
+    description="Compare carbon emissions between two vehicles using their make, model, and year.",
+    tags=["Vehicle Emissions"],
+)
 async def compare_vehicles(request: CompareRequest):
     """
     Compare carbon emissions between two vehicles.
@@ -265,7 +296,13 @@ async def compare_vehicles(request: CompareRequest):
     }
 
 
-@router.get("/vehicle_emissions/compare", response_class=HTMLResponse)
+@router.get(
+    "/vehicle_emissions/compare",
+    summary="Get comparison page",
+    description="Serve an interactive HTML page to compare two vehicles.",
+    response_class=HTMLResponse,
+    tags=["Vehicle Emissions"],
+)
 async def get_compare_page():
     """
     Endpoint to serve the interactive comparison page.
