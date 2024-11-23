@@ -11,6 +11,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from app.database import database
@@ -262,3 +263,19 @@ async def compare_vehicles(request: CompareRequest):
             "percentage_difference": abs(percentage_difference),
         },
     }
+
+
+@router.get("/vehicle_emissions/compare", response_class=HTMLResponse)
+async def get_compare_page():
+    """
+    Endpoint to serve the interactive comparison page.
+    """
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    index_path = os.path.join(current_dir, "../static/index.html")
+    try:
+        with open(index_path, "r", encoding="utf-8") as file:
+            html_content = file.read()
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError:
+        routes_logger.error("Error: index.html not found")
+        return HTMLResponse(content="Error: index.html not found", status_code=404)

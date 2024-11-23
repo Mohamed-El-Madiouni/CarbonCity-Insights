@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.database import database
 from app.routes import vehicle_routes
@@ -87,6 +88,8 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(vehicle_routes.router)
 main_logger.info("Router for vehicle_routes included in the app.")
 
+# Serve static files from the "static" directory
+app.mount("/app/static", StaticFiles(directory="app/static"), name="static")
 
 # Configure CORS
 origins = ["*"]  # Allows all origins (includes file://)
