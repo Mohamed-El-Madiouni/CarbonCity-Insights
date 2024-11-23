@@ -100,11 +100,16 @@ The API documentation will be available at http://localhost:8000/docs.
 
 ### Endpoints Overview
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Returns a welcome message. |
-| `/db_test` | GET | Tests the database connection. |
-| `/vehicle_emissions` | GET | Retrieves vehicle emissions data with filters. |
+| Endpoint                     | Method | Description |
+|------------------------------|--------|-------------|
+| `/`                          | GET    | Returns a welcome message. |
+| `/db_test`                   | GET    | Tests the database connection. |
+| `/vehicle_emissions`         | GET    | Retrieves vehicle emissions data with filters. |
+| `/vehicle_emissions/makes`   | GET    | Retrieve the list of available vehicle manufacturers. |
+| `/vehicle_emissions/models`  | GET    | Retrieve the list of models for a specific manufacturer. |
+| `/vehicle_emissions/years`   | GET    | Retrieve the available years for a specific vehicle model and manufacturer. |
+| `/vehicle_emissions/compare` | GET    | Serve an interactive HTML page to compare vehicle emissions. |
+| `/vehicle_emissions/compare` | POST   | Compare carbon emissions between two vehicles. |
 
 ### Vehicle Emissions Endpoint
 
@@ -120,7 +125,7 @@ The API documentation will be available at http://localhost:8000/docs.
 
 **Example Request**:
 ```bash
-curl -X GET "http://localhost:8000/vehicle_emissions?vehicle_make_name=Ferrari&year=2010&limit=5"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions?vehicle_make_name=Ferrari&year=2010&limit=5"
 ```
 
 **Example Response**:
@@ -141,6 +146,140 @@ curl -X GET "http://localhost:8000/vehicle_emissions?vehicle_make_name=Ferrari&y
 }
 ```
 <br>
+
+**URL**: `/vehicle_emissions/makes`  
+**Method**: `GET`  
+**Description**: Retrieve the list of available vehicle manufacturers.
+
+**Parameters**: None
+
+**Example Request**:
+```bash
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/makes"
+```
+
+**Example Response**:
+```json
+{
+  "makes": [
+    "Alfa Romeo",
+    "Ferrari"
+  ]
+}
+```
+<br>
+
+**URL**: `/vehicle_emissions/models`  
+**Method**: `GET`  
+**Description**: Retrieve the list of models for a specific manufacturer.
+
+**Parameters**:
+- `make` (required): The manufacturer name.
+
+**Example Request**:
+```bash
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/models?make=Ferrari"
+```
+
+**Example Response**:
+```json
+{
+  "models": [
+    "458 Italia",
+    "F40",
+    "Mondial"
+  ]
+}
+```
+<br>
+
+**URL**: `/vehicle_emissions/years`  
+**Method**: `GET`  
+**Description**: Retrieve the available years for a specific vehicle model and manufacturer.
+
+**Parameters**:
+- `make` (required): The manufacturer name.
+- `model` (required): The model name.
+
+**Example Request**:
+```bash
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/years?make=Ferrari&model=F40"
+```
+
+**Example Response**:
+```json
+{
+  "years": [
+    1991,
+    1992
+  ]
+}
+```
+<br>
+
+**URL**: `/vehicle_emissions/compare`  
+**Method**: `GET`  
+**Description**: Serve an interactive HTML page to compare vehicle emissions.
+
+**Parameters**: None
+
+**Example Request**:
+```bash
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/compare"
+```
+
+**Example Response**:
+- Returns an HTML page (not JSON).
+<br>
+
+**URL**: `/vehicle_emissions/compare`  
+**Method**: `POST`  
+**Description**: Compare carbon emissions between two vehicles.
+
+**Parameters**:
+- `vehicle_1` 
+  - `make` (required): Manufacturer of the first vehicle.
+  - `model` (required): Model of the first vehicle.
+  - `year` (required): Year of the first vehicle.
+- `vehicle_2` 
+  - `make` (required): Manufacturer of the second vehicle.
+  - `model` (required): Model of the second vehicle.
+  - `year` (required): Year of the second vehicle.
+
+**Example Request**:
+```bash
+curl -X POST "http://localhost:8000/vehicle_emissions/compare" \
+-H "Content-Type: application/json" \
+-d '{
+    "vehicle_1": {"make": "Ferrari", "model": "F40", "year": 1991},
+    "vehicle_2": {"make": "Ferrari", "model": "Ferrari F50", "year": 1995}
+}'
+```
+
+**Example Response**:
+```json
+{
+  "vehicle_1": {
+    "vehicle_make_name": "Ferrari",
+    "vehicle_model_name": "F40",
+    "year": 1991,
+    "carbon_emission_g": 42477.0
+  },
+  "vehicle_2": {
+    "vehicle_make_name": "Ferrari",
+    "vehicle_model_name": "Ferrari F50",
+    "year": 1995,
+    "carbon_emission_g": 69026.0
+  },
+  "comparison": {
+    "message": "Ferrari F40 (1991) consumption : 42477.0 g/100km.<br><br>Ferrari Ferrari F50 (1995) consumption : 69026.0 g/100km.<br><br>So the Ferrari F40 (1991) emits 38.46% less carbon compared to the Ferrari Ferrari F50 (1995).",
+    "percentage_difference": 38.46
+  }
+}
+```
+<br>
+
+
 
 ---
 
