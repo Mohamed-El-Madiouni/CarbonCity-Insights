@@ -15,9 +15,7 @@ from app.database import database
 from app.main import app
 from app.routes import vehicle_routes
 
-pytestmark = pytest.mark.asyncio(
-    scope="session"
-)  # Sets the scope for all tests
+pytestmark = pytest.mark.asyncio(scope="session")  # Sets the scope for all tests
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -83,7 +81,7 @@ async def test_client():
     Provide a configured HTTP test client.
     """
     async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
 

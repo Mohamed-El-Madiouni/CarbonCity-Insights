@@ -5,6 +5,7 @@ This module verifies that the database queries, schema manipulations, and
 API interactions work as expected. It ensures data insertion, retrieval,
 filtering, and pagination align with the specifications.
 """
+
 import os
 
 import pytest
@@ -21,7 +22,9 @@ async def test_database_query():
     and matches the inserted test data.
     """
     schema_name = f"test_schema_{os.getpid()}"  # Uses PID to create a unique name
-    results = await database.fetch_all(f"SELECT * FROM {schema_name}.vehicle_emissions;")
+    results = await database.fetch_all(
+        f"SELECT * FROM {schema_name}.vehicle_emissions;"
+    )
     assert len(results) == 2
     assert results[0]["vehicle_make_name"] == "Make A"
     assert results[1]["vehicle_make_name"] == "Make B"

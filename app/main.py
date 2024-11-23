@@ -89,7 +89,10 @@ app.include_router(vehicle_routes.router)
 main_logger.info("Router for vehicle_routes included in the app.")
 
 # Serve static files from the "static" directory
-app.mount("/app/static", StaticFiles(directory="app/static"), name="static")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+path = os.path.join(current_dir, "static")
+
+app.mount(path, StaticFiles(directory=path), name="static")
 
 # Configure CORS
 origins = ["*"]  # Allows all origins (includes file://)

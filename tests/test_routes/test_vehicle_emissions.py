@@ -132,3 +132,103 @@ async def test_next_cursor_type(test_client):
     assert response.status_code == 200
     # Check if "next_cursor" is of type str
     assert isinstance(response.json()["next_cursor"], str)
+
+
+@pytest.mark.asyncio
+async def test_get_vehicle_makes(test_client):
+    """
+    Test the /vehicle_emissions/makes endpoint.
+    Verifies that the endpoint returns a 200 status code and a list of vehicle makes.
+    """
+    response = await test_client.get("/vehicle_emissions/makes")
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)  # Assuming the response is a dict
+    assert len(response.json()["makes"]) > 0  # Ensure the list is not empty
+
+
+@pytest.mark.asyncio
+async def test_get_vehicle_models(test_client):
+    """
+    Test the /vehicle_emissions/models endpoint.
+    Verifies that the endpoint returns models for a valid make
+    and responds correctly to invalid input.
+    """
+    valid_make = "Toyota"
+    response = await test_client.get(f"/vehicle_emissions/models?make={valid_make}")
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)  # Assuming the response is a dict
+    assert len(response.json()) > 0  # Ensure the list is not empty
+
+    # Test for an invalid make
+    invalid_make = "NonExistentMake"
+    response_invalid = await test_client.get(
+        f"/vehicle_emissions/models?make={invalid_make}"
+    )
+    assert response_invalid.status_code == 200
+    assert (
+        response_invalid.json()["models"] == []
+    )  # Expect an empty list for invalid input
+
+
+@pytest.mark.asyncio
+async def test_get_vehicle_years(test_client):
+    """
+    Test the /vehicle_emissions/years endpoint.
+    Verifies that the endpoint returns years for a valid make and model, and handles invalid input.
+    """
+    valid_make = "Toyota"
+    valid_model = "Corolla"
+    response = await test_client.get(
+        f"/vehicle_emissions/years?" f"make={valid_make}&model={valid_model}"
+    )
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)  # Assuming the response is a dict
+    assert len(response.json()) > 0  # Ensure the list is not empty
+
+    # Test for invalid make and model
+    response_invalid = await test_client.get(
+        "/vehicle_emissions/years?make=InvalidMake&model=InvalidModel"
+    )
+    assert response_invalid.status_code == 200
+    assert (
+        response_invalid.json()["years"] == []
+    )  # Expect an empty list for invalid input
+
+
+@pytest.mark.asyncio
+async def test_get_compare_endpoint(test_client):
+    """
+    Test the GET /vehicle_emissions/compare endpoint.
+    Verifies that the endpoint renders an HTML page.
+    """
+    response = await test_client.get("/vehicle_emissions/compare")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["Content-Type"]  # Verify HTML content
+
+
+@pytest.mark.asyncio
+async def test_post_compare_endpoint(test_client):
+    """
+    Test the POST /vehicle_emissions/compare endpoint.
+    Verifies the comparison functionality with valid and invalid payloads.
+    """
+    valid_payload = {
+        "vehicle_1": {"make": "Alfa Romeo", "model": "164", "year": 1994},
+        "vehicle_2": {"make": "Ferrari", "model": "Testarossa", "year": 1985},
+    }
+    response = await test_client.post("/vehicle_emissions/compare", json=valid_payload)
+    assert response.status_code == 200
+    assert (
+        "comparison" in response.json()
+    )  # Assuming the response contains a "comparison" key
+
+    invalid_payload = {
+        "vehicle_1": {"make": "InvalidMake", "model": "InvalidModel", "year": 2020},
+        "vehicle_2": {"make": "InvalidMake", "model": "InvalidModel", "year": 2020},
+    }
+    response_invalid = await test_client.post(
+        "/vehicle_emissions/compare", json=invalid_payload
+    )
+    assert (
+        response_invalid.status_code == 404
+    )  # Assuming invalid payloads return a 404 error
