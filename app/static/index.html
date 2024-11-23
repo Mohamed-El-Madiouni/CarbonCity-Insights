@@ -6,39 +6,74 @@
     <title>Vehicle Emissions Comparison</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1, h2, h3 {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
             color: #333;
         }
-        label {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        select {
-            margin-bottom: 10px;
-            padding: 5px;
-        }
-        button {
-            padding: 10px 20px;
+        header {
             background-color: #007BFF;
             color: white;
-            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        main {
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            margin-bottom: 10px;
+            color: #0056b3;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin: 10px 0 5px;
+        }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            font-weight: bold;
             cursor: pointer;
+            transition: background-color 0.3s ease;
         }
         button:hover {
             background-color: #0056b3;
         }
         #result {
             margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
             font-size: 1.2em;
+        }
+        #result.success {
+            background-color: #e0f9e0;
+            color: #28a745;
+        }
+        #result.error {
+            background-color: #f9e0e0;
+            color: #dc3545;
         }
     </style>
     <script>
         async function fetchOptions(endpoint, dropdown) {
             // Fetch options for dropdowns from the API
-            const response = await fetch(`http://localhost:8000/vehicle_emissions/${endpoint}`);
+            const response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}`);
             const data = await response.json();
             console.log(`Fetched data for ${endpoint}:`, data); // Log data
 
@@ -75,7 +110,7 @@
 
             // Call the compare endpoint
             try {
-                const response = await fetch("http://localhost:8000/vehicle_emissions/compare", {
+                const response = await fetch("https://carboncity-insights.onrender.com/vehicle_emissions/compare", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ vehicle_1: vehicle1, vehicle_2: vehicle2 })
@@ -126,29 +161,28 @@
     </script>
 </head>
 <body>
-    <h1>Compare Vehicle Emissions</h1>
-    <div>
-        <h2>Vehicle 1</h2>
-        <label for="vehicle1-make">Make:</label>
-        <select id="vehicle1-make"></select><br>
-        <label for="vehicle1-model">Model:</label>
-        <select id="vehicle1-model"></select><br>
-        <label for="vehicle1-year">Year:</label>
-        <select id="vehicle1-year"></select>
-    </div>
-    <div>
-        <h2>Vehicle 2</h2>
-        <label for="vehicle2-make">Make:</label>
-        <select id="vehicle2-make"></select><br>
-        <label for="vehicle2-model">Model:</label>
-        <select id="vehicle2-model"></select><br>
-        <label for="vehicle2-year">Year:</label>
-        <select id="vehicle2-year"></select>
-    </div>
-    <button onclick="compareVehicles()">Compare</button>
-    <h3 id="result">
-        <span id="comparison-message"></span>
-        <span id="comparison-percentage"></span>
-    </h3></body>
+    <header>Vehicle Emissions Comparison</header>
+    <main>
+        <div>
+            <h2>Vehicle 1</h2>
+            <label for="vehicle1-make">Make:</label>
+            <select id="vehicle1-make"></select>
+            <label for="vehicle1-model">Model:</label>
+            <select id="vehicle1-model"></select>
+            <label for="vehicle1-year">Year:</label>
+            <select id="vehicle1-year"></select>
+        </div>
+        <div>
+            <h2>Vehicle 2</h2>
+            <label for="vehicle2-make">Make:</label>
+            <select id="vehicle2-make"></select>
+            <label for="vehicle2-model">Model:</label>
+            <select id="vehicle2-model"></select>
+            <label for="vehicle2-year">Year:</label>
+            <select id="vehicle2-year"></select>
+        </div>
+        <button onclick="compareVehicles()">Compare Vehicles</button>
+        <div id="result"></div>
+    </main>
+</body>
 </html>
-
