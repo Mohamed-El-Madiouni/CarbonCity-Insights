@@ -75,3 +75,20 @@ async def test_empty_schema_behavior(test_client):
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_redis_cache_mock(mock_redis_cache):
+    """
+    Test that the mock RedisCache works as expected.
+    """
+    # Test cache retrieval with a JSON value
+    mock_redis_cache.redis.get.return_value = '{"key": "cached_value"}'
+    value = await mock_redis_cache.get("test_key")
+    assert value == {"key": "cached_value"}
+
+    # Testing caching
+    await mock_redis_cache.set("test_key", {"key": "new_value"})
+    mock_redis_cache.redis.set.assert_called_with(
+        "test_key", '{"key": "new_value"}', ex=2160000
+    )
