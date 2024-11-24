@@ -1,8 +1,31 @@
 # CarbonCity Insights
 
-**CarbonCity Insights** is a data engineering project designed to analyze and visualize carbon emissions and energy consumption for various cities. The project leverages external APIs and structured data processing to provide real-time insights into urban energy usage and environmental impact.
+## CarbonCity Insights - Project Overview
+
+**CarbonCity Insights** is a data engineering project showcasing senior-level skills in API development, database optimization, and performance monitoring. The project focuses on building a robust, scalable API to provide insights into carbon emissions and energy consumption.
+
+### Technologies Used
+- **Python**: Core programming language for the entire project.
+- **FastAPI**: For building the API endpoints.
+- **PostgreSQL**: Relational database for storing and querying data.
+- **Redis**: In-memory caching system to optimize API performance.
+- **GitHub Actions**: CI/CD pipeline for automated testing and deployment.
+- **Render**: Cloud hosting platform for deploying the API.
+- **Pytest**: For writing and running unit and integration tests.
+- **Pydantic**: For data validation and schema enforcement.
 <br>
 <br>
+
+---
+
+### Project Goals
+1. To develop a well-architected API that aggregates environmental data from various sources.
+2. To demonstrate advanced data engineering practices, including caching, monitoring, and database optimization.
+3. To provide an interactive interface for comparing vehicle emissions.
+
+<br>
+<br>
+
 ---
 
 ## Table of Contents
