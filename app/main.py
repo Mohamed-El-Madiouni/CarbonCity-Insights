@@ -10,12 +10,14 @@ Attributes:
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import database
 from app.routes import vehicle_routes
@@ -25,7 +27,7 @@ log_dir = os.path.abspath(os.path.join(__file__, "../../log"))
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-# Configure logger
+# Configure main logger
 log_path = os.path.join(log_dir, "app.log")
 main_logger = logging.getLogger("main_logger")
 main_logger.setLevel(logging.INFO)
@@ -40,6 +42,22 @@ console_handler = logging.StreamHandler()
 # Adding handlers to main_logger
 main_logger.addHandler(file_handler)
 main_logger.addHandler(console_handler)
+
+# Configure middleware logger
+log_path2 = os.path.join(log_dir, "middleware.log")
+middleware_logger = logging.getLogger("middleware_logger")
+middleware_logger.setLevel(logging.INFO)
+
+# File and console handlers for middleware_logger
+file_handler = logging.FileHandler(log_path2)
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+console_handler = logging.StreamHandler()
+
+# Adding handlers to middleware_logger
+middleware_logger.addHandler(file_handler)
+middleware_logger.addHandler(logging.StreamHandler())
 
 main_logger.info("Starting CarbonCity Insights API...")
 
@@ -109,6 +127,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Configure middleware logger
+middleware_logger = logging.getLogger("middleware_logger")
+middleware_logger.setLevel(logging.INFO)
+
+
+# Middleware for response time
+class TimingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
+    """
+    Middleware to measure and log the time taken to process each request.
+    Adds the 'X-Process-Time' header to the response.
+    """
+
+    async def dispatch(self, request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        middleware_logger.info(
+            "Request: %s %s completed in %.2f seconds",
+            request.method,
+            request.url,
+            process_time,
+        )
+        response.headers["X-Process-Time"] = f"{process_time:.2f}"
+        return response
+
+
+# Add middleware to the application
+app.add_middleware(TimingMiddleware)
 
 
 # Root endpoint
