@@ -7,15 +7,32 @@ including database setup, test environment configuration, and HTTP client initia
 
 import importlib
 import os
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.database import database
 from app.main import app
+from app.redis_cache import RedisCache
 from app.routes import vehicle_routes
 
 pytestmark = pytest.mark.asyncio(scope="session")  # Sets the scope for all tests
+
+
+@pytest.fixture(autouse=True)
+async def mock_redis_cache():
+    """
+    Mock the RedisCache instance for tests.
+    """
+    redis_mock = RedisCache()
+    redis_mock.redis = AsyncMock()
+    redis_mock.redis.get.return_value = None  # Simulates a lack of cached data
+    redis_mock.redis.set.return_value = True  # Simulates cache success
+
+    vehicle_routes.redis_cache = redis_mock
+
+    yield redis_mock
 
 
 @pytest.fixture(scope="session", autouse=True)

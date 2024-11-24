@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import database
+from app.redis_cache import redis_cache
 from app.routes import vehicle_routes
 
 # Configure log directory
@@ -76,27 +77,39 @@ main_logger.info("APP_ENV: %s", APP_ENV)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """
-    Lifespan context manager to manage database connection.
+    Lifespan context manager to manage the lifecycle events.
 
     This function handles the lifecycle events of the FastAPI app.
-    It connects to the database when the app starts and disconnects when the app stops.
+    It connects to the database and Redis cache when the app starts
+    and disconnects when the app stops.
 
     :param _app: FastAPI application instance.
     """
-    # Connect to the database at startup
     try:
+        # Connect to the database
         main_logger.info("Connecting to the database...")
         await database.connect()
         main_logger.info("Database connection established.")
+
+        # Connect to Redis
+        main_logger.info("Connecting to Redis...")
+        await redis_cache.connect()
+        main_logger.info("Redis connection established.")
+
         yield
     except Exception as e:
         main_logger.error("Error during startup: %s", e)
         raise
-    # Disconnect from the database at shutdown
     finally:
+        # Disconnect from the database
         main_logger.info("Disconnecting from the database...")
         await database.disconnect()
         main_logger.info("Database connection closed.")
+
+        # Disconnect from Redis
+        main_logger.info("Disconnecting from Redis...")
+        await redis_cache.close()
+        main_logger.info("Redis connection closed.")
 
 
 # Initialize FastAPI application with lifespan handler

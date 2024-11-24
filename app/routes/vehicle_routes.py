@@ -15,6 +15,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from app.database import database
+from app.redis_cache import redis_cache
+from app.utils import serialize_data
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
@@ -61,16 +63,26 @@ async def get_vehicle_makes():
     :return: A list of all vehicle makes sorted alphabetically.
     """
     routes_logger.info("GET /vehicle_emissions/makes called")
+
+    cache_key = "vehicle_makes"
+    cached_data = await redis_cache.get(cache_key)
+    if cached_data:
+        routes_logger.info("Cache hit for vehicle makes")
+        return {"makes": cached_data}
+    routes_logger.info("Cache miss for vehicle makes. Fetching from database.")
+
     query = (
         "SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
         "ORDER BY vehicle_make_name ASC"
     )
     try:
         makes = await database.fetch_all(query)
+        makes_list = [make["vehicle_make_name"] for make in makes]
         routes_logger.info(
             "Query executed successfully. Number of makes: %d", len(makes)
         )
-        return {"makes": [make["vehicle_make_name"] for make in makes]}
+        await redis_cache.set(cache_key, makes_list)
+        return {"makes": makes_list}
     except Exception as e:
         routes_logger.error("Failed to retrieve vehicle makes: %s", e)
         raise HTTPException(status_code=404, detail="Vehicle Makes Not Found") from e
@@ -92,6 +104,14 @@ async def get_vehicle_models(
     :return: A list of vehicle models for the given make.
     """
     routes_logger.info("GET /vehicle_emissions/models called with make: %s", make)
+
+    cache_key = f"vehicle_models_{make}"
+    cached_data = await redis_cache.get(cache_key)
+    if cached_data:
+        routes_logger.info("Cache hit for vehicle models")
+        return {"models": cached_data}
+    routes_logger.info("Cache miss for vehicle models. Fetching from database.")
+
     query = """
         SELECT DISTINCT vehicle_model_name 
         FROM vehicle_emissions 
@@ -100,10 +120,12 @@ async def get_vehicle_models(
     """
     try:
         models = await database.fetch_all(query, values={"make": make})
+        models_list = [model["vehicle_model_name"] for model in models]
         routes_logger.info(
             "Query executed successfully. Number of models: %d", len(models)
         )
-        return {"models": [model["vehicle_model_name"] for model in models]}
+        await redis_cache.set(cache_key, models_list)
+        return {"models": models_list}
     except Exception as e:
         routes_logger.error(
             "Failed to retrieve vehicle models for make %s: %s", make, e
@@ -131,6 +153,14 @@ async def get_vehicle_years(
     routes_logger.info(
         "GET /vehicle_emissions/years called with make: %s, model: %s", make, model
     )
+
+    cache_key = f"vehicle_years_{make}_{model}"
+    cached_data = await redis_cache.get(cache_key)
+    if cached_data:
+        routes_logger.info("Cache hit for vehicle years")
+        return {"years": cached_data}
+    routes_logger.info("Cache miss for vehicle years. Fetching from database.")
+
     query = """
         SELECT DISTINCT year
         FROM vehicle_emissions
@@ -139,10 +169,12 @@ async def get_vehicle_years(
     """
     try:
         years = await database.fetch_all(query, values={"make": make, "model": model})
+        years_list = [year["year"] for year in years]
         routes_logger.info(
             "Query executed successfully. Number of years: %d", len(years)
         )
-        return {"years": [year["year"] for year in years]}
+        await redis_cache.set(cache_key, years_list)
+        return {"years": years_list}
     except Exception as e:
         routes_logger.error(
             "Failed to retrieve years for make %s and model %s: %s", make, model, e
@@ -185,6 +217,16 @@ async def get_vehicle_emissions(
         cursor,
         limit,
     )
+
+    cache_key = (
+        f"vehicle_emissions_{vehicle_make_name or 'all'}_{year or 'all'}_"
+        f"{cursor or 'start'}_{limit}"
+    )
+    cached_data = await redis_cache.get(cache_key)
+    if cached_data:
+        routes_logger.info("Cache hit for vehicle emissions")
+        return {"emissions": cached_data}
+    routes_logger.info("Cache miss for vehicle emissions. Fetching from database.")
 
     # Base query
     if APP_ENV == "production":
@@ -232,12 +274,21 @@ async def get_vehicle_emissions(
     else:
         next_cursor = None
 
+    results_serializable = [dict(record) for record in results]
+
+    # Serialize the data (handle UUIDs and other non-serializable types)
+    results_serializable = serialize_data(results_serializable)
+    routes_logger.debug("Serialized data before caching: %s", results_serializable)
+
+    if results_serializable:
+        response = {"data": results_serializable, "next_cursor": next_cursor}
+    else:
+        response = {"data": [], "next_cursor": None}
+
+    await redis_cache.set(cache_key, response)
+
     # Ensure a 200 response with an empty list if no data is found
-    return (
-        {"data": results, "next_cursor": next_cursor}
-        if results
-        else {"data": [], "next_cursor": None}
-    )
+    return response
 
 
 class CompareRequest(BaseModel):
