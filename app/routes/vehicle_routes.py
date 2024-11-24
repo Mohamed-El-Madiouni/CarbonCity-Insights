@@ -60,12 +60,20 @@ async def get_vehicle_makes():
 
     :return: A list of all vehicle makes sorted alphabetically.
     """
+    routes_logger.info("GET /vehicle_emissions/makes called")
     query = (
         "SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
         "ORDER BY vehicle_make_name ASC"
     )
-    makes = await database.fetch_all(query)
-    return {"makes": [make["vehicle_make_name"] for make in makes]}
+    try:
+        makes = await database.fetch_all(query)
+        routes_logger.info(
+            "Query executed successfully. Number of makes: %d", len(makes)
+        )
+        return {"makes": [make["vehicle_make_name"] for make in makes]}
+    except Exception as e:
+        routes_logger.error("Failed to retrieve vehicle makes: %s", e)
+        raise HTTPException(status_code=404, detail="Vehicle Makes Not Found") from e
 
 
 @router.get(
@@ -83,14 +91,24 @@ async def get_vehicle_models(
     :param make: Vehicle make name (e.g., 'Ferrari').
     :return: A list of vehicle models for the given make.
     """
+    routes_logger.info("GET /vehicle_emissions/models called with make: %s", make)
     query = """
         SELECT DISTINCT vehicle_model_name 
         FROM vehicle_emissions 
         WHERE vehicle_make_name = :make 
         ORDER BY vehicle_model_name ASC
     """
-    models = await database.fetch_all(query, values={"make": make})
-    return {"models": [model["vehicle_model_name"] for model in models]}
+    try:
+        models = await database.fetch_all(query, values={"make": make})
+        routes_logger.info(
+            "Query executed successfully. Number of models: %d", len(models)
+        )
+        return {"models": [model["vehicle_model_name"] for model in models]}
+    except Exception as e:
+        routes_logger.error(
+            "Failed to retrieve vehicle models for make %s: %s", make, e
+        )
+        raise HTTPException(status_code=404, detail="Vehicle Models Not Found") from e
 
 
 @router.get(
@@ -110,21 +128,33 @@ async def get_vehicle_years(
     :param model: Vehicle model name.
     :return: A list of years for the given make and model.
     """
+    routes_logger.info(
+        "GET /vehicle_emissions/years called with make: %s, model: %s", make, model
+    )
     query = """
         SELECT DISTINCT year
         FROM vehicle_emissions
         WHERE vehicle_make_name = :make AND vehicle_model_name = :model
         ORDER BY year ASC
     """
-    years = await database.fetch_all(query, values={"make": make, "model": model})
-    return {"years": [year["year"] for year in years]}
+    try:
+        years = await database.fetch_all(query, values={"make": make, "model": model})
+        routes_logger.info(
+            "Query executed successfully. Number of years: %d", len(years)
+        )
+        return {"years": [year["year"] for year in years]}
+    except Exception as e:
+        routes_logger.error(
+            "Failed to retrieve years for make %s and model %s: %s", make, model, e
+        )
+        raise HTTPException(status_code=404, detail="Vehicle Years Not Found") from e
 
 
 @router.get(
     "/vehicle_emissions",
     summary="Get vehicle emissions data",
     description="Retrieve vehicle emissions "
-                "data with optional filters and cursor-based pagination.",
+    "data with optional filters and cursor-based pagination.",
     tags=["Vehicle Emissions"],
 )
 async def get_vehicle_emissions(
@@ -236,6 +266,7 @@ async def compare_vehicles(request: CompareRequest):
     :param request: A JSON payload containing details of the two vehicles to compare.
     :return: Comparison results, including a percentage difference and a summary message.
     """
+    routes_logger.info("POST /vehicle_emissions/compare called")
     query = """
         SELECT vehicle_make_name, vehicle_model_name, year, carbon_emission_g
         FROM vehicle_emissions
@@ -252,48 +283,55 @@ async def compare_vehicles(request: CompareRequest):
         ) from e
 
     # Fetch details for vehicle 1
-    vehicle_1 = await database.fetch_one(query, values=request.vehicle_1)
-    if not vehicle_1:
-        routes_logger.error("Vehicle 1 not found.")
-        raise HTTPException(status_code=404, detail="Vehicle 1 not found.")
+    try:
+        vehicle_1 = await database.fetch_one(query, values=request.vehicle_1)
+        if not vehicle_1:
+            routes_logger.error("Vehicle 1 not found.")
+            raise HTTPException(status_code=404, detail="Vehicle 1 not found.")
 
-    # Fetch details for vehicle 2
-    vehicle_2 = await database.fetch_one(query, values=request.vehicle_2)
-    if not vehicle_2:
-        routes_logger.error("Vehicle 2 not found.")
-        raise HTTPException(status_code=404, detail="Vehicle 2 not found.")
+        # Fetch details for vehicle 2
+        vehicle_2 = await database.fetch_one(query, values=request.vehicle_2)
+        if not vehicle_2:
+            routes_logger.error("Vehicle 2 not found.")
+            raise HTTPException(status_code=404, detail="Vehicle 2 not found.")
 
-    # Calculate percentage difference
-    emissions_1 = vehicle_1["carbon_emission_g"]
-    emissions_2 = vehicle_2["carbon_emission_g"]
-    if emissions_2 == 0:
-        routes_logger.error("Vehicle 2 emissions data invalid.")
-        raise HTTPException(status_code=400, detail="Vehicle 2 emissions data invalid.")
+        # Calculate percentage difference
+        emissions_1 = vehicle_1["carbon_emission_g"]
+        emissions_2 = vehicle_2["carbon_emission_g"]
+        if emissions_2 == 0:
+            routes_logger.error("Vehicle 2 emissions data invalid.")
+            raise HTTPException(
+                status_code=400, detail="Vehicle 2 emissions data invalid."
+            )
 
-    percentage_difference = round(
-        ((emissions_1 - emissions_2) / abs(emissions_2)) * 100, 2
-    )
-    # Construct a summary message
-    message = (
-        f"{vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
-        f"({vehicle_1['year']}) consumption : {vehicle_1['carbon_emission_g']} g/100km.<br><br>"
-        f"{vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
-        f"({vehicle_2['year']}) consumption : {vehicle_2['carbon_emission_g']} g/100km.<br><br>"
-        f"So the {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
-        f"({vehicle_1['year']}) emits {abs(percentage_difference)}% "
-        f"{'more' if emissions_1 > emissions_2 else 'less'} carbon compared "
-        f"to the {vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
-        f"({vehicle_2['year']})."
-    )
+        percentage_difference = round(
+            ((emissions_1 - emissions_2) / abs(emissions_2)) * 100, 2
+        )
+        # Construct a summary message
+        message = (
+            f"{vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
+            f"({vehicle_1['year']}) consumption : {vehicle_1['carbon_emission_g']} g/100km.<br><br>"
+            f"{vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
+            f"({vehicle_2['year']}) consumption : {vehicle_2['carbon_emission_g']} g/100km.<br><br>"
+            f"So the {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
+            f"({vehicle_1['year']}) emits {abs(percentage_difference)}% "
+            f"{'more' if emissions_1 > emissions_2 else 'less'} carbon compared "
+            f"to the {vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
+            f"({vehicle_2['year']})."
+        )
+        routes_logger.info("Comparison calculated successfully")
 
-    return {
-        "vehicle_1": vehicle_1,
-        "vehicle_2": vehicle_2,
-        "comparison": {
-            "message": message,
-            "percentage_difference": abs(percentage_difference),
-        },
-    }
+        return {
+            "vehicle_1": vehicle_1,
+            "vehicle_2": vehicle_2,
+            "comparison": {
+                "message": message,
+                "percentage_difference": abs(percentage_difference),
+            },
+        }
+    except Exception as e:
+        routes_logger.error("Error in vehicle comparison: %s", e)
+        raise HTTPException(status_code=404, detail="Not Found") from e
 
 
 @router.get(
@@ -307,12 +345,13 @@ async def get_compare_page():
     """
     Endpoint to serve the interactive comparison page.
     """
+    routes_logger.info("GET /vehicle_emissions/compare called")
     current_dir = os.path.dirname(os.path.abspath(__file__))
     index_path = os.path.join(current_dir, "../static/index.html")
     try:
         with open(index_path, "r", encoding="utf-8") as file:
             html_content = file.read()
         return HTMLResponse(content=html_content)
-    except FileNotFoundError:
-        routes_logger.error("Error: index.html not found")
+    except FileNotFoundError as e:
+        routes_logger.error("Error: index.html not found: %s", e)
         return HTMLResponse(content="Error: index.html not found", status_code=404)

@@ -70,10 +70,17 @@ def send_notification(subject, body):
     msg["From"] = NOTIFICATION_EMAIL
     msg["To"] = NOTIFICATION_EMAIL
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(NOTIFICATION_EMAIL, EMAIL_PASSWORD)
-        smtp.send_message(msg)
-    services_logger.info("Notification email sent successfully.")
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(NOTIFICATION_EMAIL, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+        services_logger.info("Notification email sent successfully.")
+    except smtplib.SMTPAuthenticationError as e:
+        services_logger.error("Authentication failed: %s", e)
+    except smtplib.SMTPException as e:
+        services_logger.error("SMTP error occurred: %s", e)
+    except ConnectionRefusedError as e:
+        services_logger.error("Connection refused: %s", e)
 
 
 async def fetch_vehicle_makes():
@@ -84,16 +91,18 @@ async def fetch_vehicle_makes():
     """
     services_logger.info("Fetching vehicle makes from Carbon Interface API...")
     url = "https://www.carboninterface.com/api/v1/vehicle_makes"
-    response = requests.get(url, headers=HEADERS, timeout=60)
-
-    if response.status_code == 200:
-        services_logger.info("Successfully fetched vehicle makes.")
-        return response.json()
-    services_logger.error(
-        "Failed to fetch vehicle makes. Status: %s, Message: %s",
-        response.status_code,
-        response.text,
-    )
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=60)
+        if response.status_code == 200:
+            services_logger.info("Successfully fetched vehicle makes.")
+            return response.json()
+        services_logger.error(
+            "Failed to fetch vehicle makes. Status: %s, Message: %s",
+            response.status_code,
+            response.text,
+        )
+    except RequestException as e:
+        services_logger.error("Request to fetch vehicle makes failed: %s", e)
     return []
 
 
@@ -165,17 +174,20 @@ async def fetch_vehicle_models(make_id):
     models_url = (
         f"https://www.carboninterface.com/api/v1/vehicle_makes/{make_id}/vehicle_models"
     )
-    response = requests.get(models_url, headers=HEADERS, timeout=60)
-    if response.status_code == 200:
-        services_logger.info(
-            "Successfully fetched vehicle models for make ID: %s", make_id
+    try:
+        response = requests.get(models_url, headers=HEADERS, timeout=60)
+        if response.status_code == 200:
+            services_logger.info(
+                "Successfully fetched vehicle models for make ID: %s", make_id
+            )
+            return response.json()
+        services_logger.error(
+            "Failed to fetch models for make ID %s. Status: %s",
+            make_id,
+            response.status_code,
         )
-        return response.json()
-    services_logger.error(
-        "Failed to fetch models for make ID %s. Status: %s",
-        make_id,
-        response.status_code,
-    )
+    except RequestException as e:
+        services_logger.error("Request to fetch vehicle models failed: %s", e)
     return []
 
 
@@ -193,21 +205,25 @@ async def check_duplicate_entry(year, model_name, make_name):
     SELECT COUNT(*) FROM vehicle_emissions 
     WHERE year = :year AND vehicle_model_name = :model_name AND vehicle_make_name = :make_name
     """
-    is_duplicate = (
-        await database.fetch_val(
-            query=duplicate_check_query,
-            values={"year": year, "model_name": model_name, "make_name": make_name},
+    try:
+        is_duplicate = (
+            await database.fetch_val(
+                query=duplicate_check_query,
+                values={"year": year, "model_name": model_name, "make_name": make_name},
+            )
+            > 0
         )
-        > 0
-    )
-    if is_duplicate:
-        services_logger.info(
-            "Duplicate entry found for model: %s (%s) - make: %s",
-            model_name,
-            year,
-            make_name,
-        )
-    return is_duplicate
+        if is_duplicate:
+            services_logger.info(
+                "Duplicate entry found for model: %s (%s) - make: %s",
+                model_name,
+                year,
+                make_name,
+            )
+        return is_duplicate
+    except PostgresError as e:
+        services_logger.error("Database error during duplicate check: %s", e)
+    return False
 
 
 async def fetch_emission_estimate(model_id):
@@ -224,27 +240,30 @@ async def fetch_emission_estimate(model_id):
         "distance_value": 100,
         "vehicle_model_id": model_id,
     }
-    response = requests.post(
-        estimate_url, headers=HEADERS, json=estimate_payload, timeout=10
-    )
-    if response.status_code == 201:
-        services_logger.info(
-            "Successfully fetched emission estimate for model ID: %s", model_id
+    try:
+        response = requests.post(
+            estimate_url, headers=HEADERS, json=estimate_payload, timeout=10
         )
-        return response.json()["data"]["attributes"]
-    if response.status_code == 401:
-        send_notification(
-            subject="API Request Limit Reached",
-            body="Your account has hit its monthly API request limit. "
-            "Please upgrade to make more requests.",
+        if response.status_code == 201:
+            services_logger.info(
+                "Successfully fetched emission estimate for model ID: %s", model_id
+            )
+            return response.json()["data"]["attributes"]
+        if response.status_code == 401:
+            send_notification(
+                subject="API Request Limit Reached",
+                body="Your account has hit its monthly API request limit. "
+                "Please upgrade to make more requests.",
+            )
+            services_logger.error("API request limit reached. Execution stopped.")
+            raise SystemExit("Stopping execution due to API request limit.")
+        services_logger.error(
+            "Failed to fetch emission estimate. Status: %s, Message: %s",
+            response.status_code,
+            response.text,
         )
-        services_logger.error("API request limit reached. Execution stopped.")
-        raise SystemExit("Stopping execution due to API request limit.")
-    services_logger.error(
-        "Failed to fetch emission estimate. Status: %s, Message: %s",
-        response.status_code,
-        response.text,
-    )
+    except RequestException as e:
+        services_logger.error("Request to fetch emission estimate failed: %s", e)
     return None
 
 
@@ -271,8 +290,11 @@ async def insert_vehicle_emission_record(
         "distance_unit": estimate_data["distance_unit"],
         "carbon_emission_g": estimate_data["carbon_g"],
     }
-    await database.execute(query=insert_query, values=values)
-    services_logger.info("Record inserted successfully.")
+    try:
+        await database.execute(query=insert_query, values=values)
+        services_logger.info("Record inserted successfully.")
+    except PostgresError as e:
+        services_logger.error("Failed to insert record: %s", e)
 
 
 if __name__ == "__main__":

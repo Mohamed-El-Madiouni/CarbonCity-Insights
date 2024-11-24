@@ -73,24 +73,31 @@
     <script>
         async function fetchOptions(endpoint, dropdown) {
             // Fetch options for dropdowns from the API
-            const response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}`);
-            const data = await response.json();
-            console.log(`Fetched data for ${endpoint}:`, data); // Log data
+            console.log(`Fetching options from endpoint: /vehicle_emissions/${endpoint}`); // Log API request
+            try {
+                const response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}`);
+                const data = await response.json();
+                console.log(`Fetched data for ${endpoint}:`, data); // Log data
 
-            // Check if the object contains a `makes`, `models`, or other key
-            const items = data.makes || data.models || data.years || [];
-
-            dropdown.innerHTML = "<option value=''>Select</option>"; // Reset dropdown
-            items.forEach(item => {
-                const option = document.createElement("option");
-                option.value = item;
-                option.textContent = item;
-                dropdown.appendChild(option);
-            });
+                // Check if the object contains a `makes`, `models`, or other key
+                const items = data.makes || data.models || data.years || [];
+                dropdown.innerHTML = "<option value=''>Select</option>"; // Reset dropdown
+                items.forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item;
+                    option.textContent = item;
+                    dropdown.appendChild(option);
+                });
+                console.log(`Dropdown updated for ${endpoint}`); // Log dropdown update
+            } catch (error) {
+                console.error(`Error fetching options for ${endpoint}:`, error); // Log error
+            }
         }
+
 
         async function compareVehicles() {
             // Get selected values for both vehicles
+            console.log("Compare Vehicles button clicked"); // Log button click
             const vehicle1 = {
                 make: document.getElementById("vehicle1-make").value,
                 model: document.getElementById("vehicle1-model").value,
@@ -101,10 +108,13 @@
                 model: document.getElementById("vehicle2-model").value,
                 year: document.getElementById("vehicle2-year").value
             };
+            console.log("Vehicle 1 details:", vehicle1); // Log Vehicle 1 details
+            console.log("Vehicle 2 details:", vehicle2); // Log Vehicle 2 details
 
             // Ensure all fields are filled
             if (!vehicle1.make || !vehicle1.model || !vehicle1.year || !vehicle2.make || !vehicle2.model || !vehicle2.year) {
                 document.getElementById("result").innerText = "Please select all fields for both vehicles.";
+                console.warn("Incomplete vehicle details provided"); // Log warning
                 return;
             }
 
@@ -121,40 +131,47 @@
                 }
 
                 const result = await response.json();
+                console.log("Comparison result received:", result); // Log comparison result
                 // Extract message and percentage
                 const { message, percentage_difference } = result.comparison;
 
                 const resultElement = document.getElementById("result");
                 resultElement.innerHTML = ""; // Clear previous results
 
-        // Replace percentage placeholder
-        const formattedMessage = message.replace(/(\d+\.\d+%)/, `<span style="color: ${message.includes("less") ? "green" : "red"};">${percentage_difference}%</span>`)
+                // Replace percentage placeholder
+                const formattedMessage = message.replace(/(\d+\.\d+%)/, `<span style="color: ${message.includes("less") ? "green" : "red"};">${percentage_difference}%</span>`)
 
                 resultElement.innerHTML = formattedMessage;
-
+                document.getElementById("result").innerHTML = formattedMessage;
             } catch (error) {
+                console.error("Error during vehicle comparison:", error); // Log error
                 document.getElementById("result").innerText = `An error occurred: ${error.message}`;
             }
         }
 
 
         document.addEventListener("DOMContentLoaded", () => {
+            console.log("Document loaded, initializing dropdowns"); // Log initialization
             // Populate dropdowns for vehicle 1
             fetchOptions("makes", document.getElementById("vehicle1-make"));
             fetchOptions("makes", document.getElementById("vehicle2-make"));
 
             document.getElementById("vehicle1-make").addEventListener("change", () => {
+                console.log("Vehicle 1 make selected:", document.getElementById("vehicle1-make").value); // Log selection
                 fetchOptions(`models?make=${document.getElementById("vehicle1-make").value}`, document.getElementById("vehicle1-model"));
             });
             document.getElementById("vehicle1-model").addEventListener("change", () => {
+                console.log("Vehicle 1 model selected:", document.getElementById("vehicle1-model").value); // Log selection
                 fetchOptions(`years?make=${document.getElementById("vehicle1-make").value}&model=${document.getElementById("vehicle1-model").value}`, document.getElementById("vehicle1-year"));
             });
 
             // Populate dropdowns for vehicle 2
             document.getElementById("vehicle2-make").addEventListener("change", () => {
+                console.log("Vehicle 2 make selected:", document.getElementById("vehicle2-make").value); // Log selection
                 fetchOptions(`models?make=${document.getElementById("vehicle2-make").value}`, document.getElementById("vehicle2-model"));
             });
             document.getElementById("vehicle2-model").addEventListener("change", () => {
+                console.log("Vehicle 2 model selected:", document.getElementById("vehicle2-model").value); // Log selection
                 fetchOptions(`years?make=${document.getElementById("vehicle2-make").value}&model=${document.getElementById("vehicle2-model").value}`, document.getElementById("vehicle2-year"));
             });
         });
