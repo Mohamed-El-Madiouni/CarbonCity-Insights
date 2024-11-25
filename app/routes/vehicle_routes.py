@@ -17,14 +17,15 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.database import database
 from app.redis_cache import redis_cache
-from app.utils import create_access_token, serialize_data
+from app.utils import create_access_token, decode_access_token, serialize_data
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
@@ -147,6 +148,51 @@ async def login_user(user: UserLogin):
     access_token = create_access_token(data={"sub": db_user["username"]})
     routes_logger.info("Valid login credentials")
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """
+    Validate and decode the current user's token.
+
+    Args:
+        token (str): The JWT token from the request.
+
+    Returns:
+        str: The username of the authenticated user.
+    """
+    payload = decode_access_token(token)
+    if not payload:
+        routes_logger.info("Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    routes_logger.info("Valid token")
+    return payload["sub"]
+
+
+@router.get("/protected-endpoint")
+async def protected_endpoint(token: Optional[str] = None):
+    """
+    A protected endpoint that validates a token passed via URL.
+
+    Args:
+        token (Optional[str]): The token passed as a query parameter.
+
+    Returns:
+        dict: A greeting message with the username.
+    """
+    if token:
+        routes_logger.info("Token provided by URL")
+        payload = decode_access_token(token)
+        if not payload:
+            routes_logger.info("Invalid or expired token")
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        routes_logger.info("Valid token, user %s", {payload["sub"]})
+        return {"message": f"Hello, {payload['sub']}"}
+
+    routes_logger.info("Not authenticated, No token provided")
+    raise HTTPException(status_code=401, detail="Not authenticated, No token provided")
 
 
 @router.get(

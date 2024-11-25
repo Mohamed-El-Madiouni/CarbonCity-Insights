@@ -16,7 +16,7 @@ load_dotenv()
 
 # Determine the application environment
 APP_ENV = os.getenv("APP_ENV", "production")
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Database connection for async queries
 database = Database(DATABASE_URL, min_size=1, max_size=20)
