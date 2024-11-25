@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form id="loginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <button type="submit">Login</button>
+    </form>
+    <div id="message"></div>
+    <div id="token" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; display: none;">
+        <span id="tokenValue"></span>
+        <button onclick="copyToken()" style="margin-left: 20px;">Copier le token</button>
+    </div>
+
+    <script>
+        function copyToken() {
+            const tokenValue = document.getElementById("tokenValue").innerText;
+            navigator.clipboard.writeText(tokenValue).then(() => {
+                alert("Token copié dans le presse-papiers !");
+            });
+        }
+
+        document.getElementById("loginForm").addEventListener("submit", async function(event) {
+            event.preventDefault(); // Empêche l'envoi classique du formulaire
+
+            // Récupère les valeurs du formulaire
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            try {
+                // Envoie les données au backend via fetch
+                const response = await fetch("/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById("message").innerText = result.message;
+
+                    // Afficher le token
+                    const tokenElement = document.getElementById("token");
+                    const tokenValue = document.getElementById("tokenValue");
+                    tokenElement.style.display = "block";
+                    tokenValue.innerText = result.access_token;
+                } else {
+                    document.getElementById("message").innerText = `Erreur: ${result.detail}`;
+                }
+            } catch (error) {
+                console.error("Erreur lors de la connexion:", error);
+                document.getElementById("message").innerText = "Erreur interne. Veuillez réessayer.";
+            }
+        });
+    </script>
+
+
+
+</body>
+</html>
