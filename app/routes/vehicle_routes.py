@@ -1,8 +1,15 @@
 """
 Vehicle Emissions API Endpoint
 
-This module provides an endpoint to retrieve vehicle emissions data from the database.
-Supports optional filtering by vehicle make and year, with pagination.
+This module provides endpoints for user authentication and vehicle emissions data.
+It includes functionalities for registering and logging in users, as well as
+retrieving, filtering, and comparing vehicle emissions data.
+
+Endpoints:
+- User registration and login.
+- Protected endpoints requiring authentication.
+- Retrieval of vehicle makes, models, and years.
+- Comparison of vehicle emissions.
 """
 
 import logging
@@ -12,11 +19,12 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.database import database
 from app.redis_cache import redis_cache
-from app.utils import serialize_data
+from app.utils import create_access_token, serialize_data
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
@@ -48,6 +56,97 @@ load_dotenv()
 APP_ENV = os.getenv("APP_ENV", "production")
 
 router = APIRouter()
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class UserCreate(BaseModel):
+    """
+    Schema for user registration payload.
+
+    Attributes:
+        username (str): The username of the user.
+        email (str): The email address of the user.
+        password (str): The password of the user.
+    """
+
+    username: str
+    email: str
+    password: str
+
+
+class UserLogin(BaseModel):
+    """
+    Schema for user login payload.
+
+    Attributes:
+        username (str): The username of the user.
+        password (str): The password of the user.
+    """
+
+    username: str
+    password: str
+
+
+@router.post("/register")
+async def register_user(user: UserCreate):
+    """
+    Register a new user in the system.
+
+    Args:
+        user (UserCreate): The user registration data.
+
+    Returns:
+        dict: Success message.
+    """
+    query = "SELECT * FROM users WHERE username = :username OR email = :email"
+    existing_user = await database.fetch_one(
+        query, values={"username": user.username, "email": user.email}
+    )
+    if existing_user:
+        routes_logger.info("Username or email already registered")
+        raise HTTPException(
+            status_code=400, detail="Username or email already registered"
+        )
+
+    hashed_password = pwd_context.hash(user.password)
+    query = (
+        "INSERT INTO users (username, email, hashed_password) VALUES "
+        "(:username, :email, :hashed_password)"
+    )
+    await database.execute(
+        query,
+        values={
+            "username": user.username,
+            "email": user.email,
+            "hashed_password": hashed_password,
+        },
+    )
+    routes_logger.info("User registered successfully")
+    return {"message": "User registered successfully"}
+
+
+@router.post("/login")
+async def login_user(user: UserLogin):
+    """
+    Authenticate a user and generate a JWT token.
+
+    Args:
+        user (UserLogin): The user login data.
+
+    Returns:
+        dict: A JWT access token and token type.
+    """
+    query = "SELECT * FROM users WHERE username = :username"
+    db_user = await database.fetch_one(query, values={"username": user.username})
+    if not db_user or not pwd_context.verify(user.password, db_user["hashed_password"]):
+        routes_logger.info("Invalid credentials")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Create a JWT token
+    access_token = create_access_token(data={"sub": db_user["username"]})
+    routes_logger.info("Valid login credentials")
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get(
