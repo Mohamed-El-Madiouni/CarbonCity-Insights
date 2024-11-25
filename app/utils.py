@@ -11,7 +11,11 @@ Functions:
   JSON-compatible formats.
 """
 
+import os
+from datetime import datetime, timedelta
 from uuid import UUID
+
+from jose import jwt
 
 
 def serialize_data(data):
@@ -30,3 +34,34 @@ def serialize_data(data):
     if hasattr(data, "dict"):  # Convert Pydantic models to dict
         return serialize_data(data.dict())
     return data
+
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "default_secret_key")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRATION_MINUTES = int(os.getenv("JWT_EXPIRATION_MINUTES", "30"))
+
+
+def create_access_token(data: dict):
+    """
+    Generates a JWT token with a given payload.
+    :param data: The data to be included in the token.
+    :return: A signed JWT token.
+    """
+    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRATION_MINUTES)
+    to_encode = data.copy()
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+
+def decode_access_token(token: str):
+    """
+    Decodes a JWT token to extract data.
+    :param token: The JWT token to decode.
+    :return: The data contained in the token.
+    """
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.JWTError:
+        return None
