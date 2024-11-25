@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.database import database
 from app.redis_cache import redis_cache
 from app.routes import vehicle_routes
+from app.routes import auth_routes
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../log"))
@@ -123,6 +124,8 @@ app = FastAPI(
 # Include the routes
 app.include_router(vehicle_routes.router)
 main_logger.info("Router for vehicle_routes included in the app.")
+app.include_router(auth_routes.auth_router)
+main_logger.info("Router for auth_routes included in the app.")
 
 # Serve static files from the "static" directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
