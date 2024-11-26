@@ -71,15 +71,38 @@
         }
     </style>
     <script>
+        // Extract token dynamically from the current URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token'); // Get the token parameter from the URL
+
+        if (!token) {
+            console.error("No token found in the URL. Please include a token as a query parameter.");
+            alert("Access denied: Token missing.");
+        }
+
+        console.log("Token extracted from URL:", token); // Log the token for debugging
+
         async function fetchOptions(endpoint, dropdown) {
             // Fetch options for dropdowns from the API
-            console.log(`Fetching options from endpoint: /vehicle_emissions/${endpoint}`); // Log API request
+            console.log(`Fetching options for endpoint: ${endpoint}`); // Log API request
             try {
-                const response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}`);
-                const data = await response.json();
-                console.log(`Fetched data for ${endpoint}:`, data); // Log data
+                let response;
+                // Determine how to construct the URL based on the endpoint
+                if (endpoint === "makes") {
+                    response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}?token=${token}`);
+                } else {
+                    response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}&token=${token}`);
+                }
 
-                // Check if the object contains a `makes`, `models`, or other key
+                if (!response.ok) {
+                    console.error(`Failed to fetch options for ${endpoint}. Status: ${response.status}`);
+                    return;
+                }
+
+                const data = await response.json();
+                console.log(`Fetched data for ${endpoint}:`, data); // Log fetched data
+
+                // Determine the key (`makes`, `models`, or `years`) in the response
                 const items = data.makes || data.models || data.years || [];
                 dropdown.innerHTML = "<option value=''>Select</option>"; // Reset dropdown
                 items.forEach(item => {
@@ -93,7 +116,6 @@
                 console.error(`Error fetching options for ${endpoint}:`, error); // Log error
             }
         }
-
 
         async function compareVehicles() {
             // Get selected values for both vehicles
@@ -120,9 +142,11 @@
 
             // Call the compare endpoint
             try {
-                const response = await fetch("https://carboncity-insights.onrender.com/vehicle_emissions/compare", {
+                const response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/compare?token=${token}`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({ vehicle_1: vehicle1, vehicle_2: vehicle2 })
                 });
 
@@ -139,16 +163,14 @@
                 resultElement.innerHTML = ""; // Clear previous results
 
                 // Replace percentage placeholder
-                const formattedMessage = message.replace(/(\d+\.\d+%)/, `<span style="color: ${message.includes("less") ? "green" : "red"};">${percentage_difference}%</span>`)
+                const formattedMessage = message.replace(/(\d+\.\d+%)/, `<span style="color: ${message.includes("less") ? "green" : "red"};">${percentage_difference}%</span>`);
 
                 resultElement.innerHTML = formattedMessage;
-                document.getElementById("result").innerHTML = formattedMessage;
             } catch (error) {
                 console.error("Error during vehicle comparison:", error); // Log error
                 document.getElementById("result").innerText = `An error occurred: ${error.message}`;
             }
         }
-
 
         document.addEventListener("DOMContentLoaded", () => {
             console.log("Document loaded, initializing dropdowns"); // Log initialization

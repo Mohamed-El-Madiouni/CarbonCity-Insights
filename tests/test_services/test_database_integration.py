@@ -31,14 +31,14 @@ async def test_database_query():
 
 
 @pytest.mark.asyncio
-async def test_vehicle_emissions_endpoint(test_client):
+async def test_vehicle_emissions_endpoint(test_client, test_token):
     """
     Test the /vehicle_emissions endpoint for default data retrieval.
 
     Verifies that the endpoint interacts with the database correctly and
     returns the expected results with proper HTTP status codes.
     """
-    response = await test_client.get("/vehicle_emissions")
+    response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 2
@@ -47,14 +47,16 @@ async def test_vehicle_emissions_endpoint(test_client):
 
 
 @pytest.mark.asyncio
-async def test_vehicle_emissions_with_filters(test_client):
+async def test_vehicle_emissions_with_filters(test_client, test_token):
     """
     Test filtering functionality for the /vehicle_emissions endpoint.
 
     Ensures that the endpoint filters results correctly based on the
     provided query parameters (e.g., vehicle_make_name).
     """
-    response = await test_client.get("/vehicle_emissions?vehicle_make_name=Make A")
+    response = await test_client.get(
+        f"/vehicle_emissions?" f"vehicle_make_name=Make A&token={test_token}"
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 1
@@ -63,7 +65,7 @@ async def test_vehicle_emissions_with_filters(test_client):
 
 
 @pytest.mark.asyncio
-async def test_empty_schema_behavior(test_client):
+async def test_empty_schema_behavior(test_client, test_token):
     """
     Test behavior when the schema is empty.
 
@@ -71,7 +73,7 @@ async def test_empty_schema_behavior(test_client):
     """
     schema_name = f"test_schema_{os.getpid()}"  # Uses PID to create a unique name
     await database.execute(f"DELETE FROM {schema_name}.vehicle_emissions; ")
-    response = await test_client.get("/vehicle_emissions")
+    response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 0

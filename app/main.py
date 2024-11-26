@@ -21,8 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import database
 from app.redis_cache import redis_cache
-from app.routes import vehicle_routes
-from app.routes import auth_routes
+from app.routes import auth_routes, vehicle_routes
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../log"))

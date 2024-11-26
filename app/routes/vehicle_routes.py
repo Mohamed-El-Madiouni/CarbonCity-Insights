@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from app.database import database
 from app.redis_cache import redis_cache
-from app.utils import serialize_data
+from app.utils import decode_access_token, serialize_data
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
@@ -60,36 +60,24 @@ router = APIRouter()
     description="Retrieve a list of all available vehicle manufacturers.",
     tags=["Vehicle Emissions"],
 )
-async def get_vehicle_makes():
+async def get_vehicle_makes(token: Optional[str] = None):
     """
     Fetch unique vehicle makes from the database.
 
     :return: A list of all vehicle makes sorted alphabetically.
     """
-    routes_logger.info("GET /vehicle_emissions/makes called")
+    payload = await validate_token(token)
+    routes_logger.info(
+        "GET /vehicle_emissions/makes called for user %s", payload["sub"]
+    )
 
     cache_key = "vehicle_makes"
-    cached_data = await redis_cache.get(cache_key)
-    if cached_data:
-        routes_logger.info("Cache hit for vehicle makes")
-        return {"makes": cached_data}
-    routes_logger.info("Cache miss for vehicle makes. Fetching from database.")
-
-    query = (
-        "SELECT DISTINCT vehicle_make_name FROM vehicle_emissions "
-        "ORDER BY vehicle_make_name ASC"
-    )
-    try:
-        makes = await database.fetch_all(query)
-        makes_list = [make["vehicle_make_name"] for make in makes]
-        routes_logger.info(
-            "Query executed successfully. Number of makes: %d", len(makes)
-        )
-        await redis_cache.set(cache_key, makes_list)
-        return {"makes": makes_list}
-    except Exception as e:
-        routes_logger.error("Failed to retrieve vehicle makes: %s", e)
-        raise HTTPException(status_code=404, detail="Vehicle Makes Not Found") from e
+    query = """
+            SELECT DISTINCT vehicle_make_name
+            FROM vehicle_emissions
+            ORDER BY vehicle_make_name ASC
+        """
+    return await fetch_and_cache(cache_key, query, result_key="makes")
 
 
 @router.get(
@@ -99,7 +87,8 @@ async def get_vehicle_makes():
     tags=["Vehicle Emissions"],
 )
 async def get_vehicle_models(
-    make: str = Query(..., description="The manufacturer name (e.g., 'Ferrari').")
+    make: str = Query(..., description="The manufacturer name (e.g., 'Ferrari')."),
+    token: Optional[str] = None,
 ):
     """
     Fetch unique vehicle models for a given make.
@@ -107,34 +96,23 @@ async def get_vehicle_models(
     :param make: Vehicle make name (e.g., 'Ferrari').
     :return: A list of vehicle models for the given make.
     """
-    routes_logger.info("GET /vehicle_emissions/models called with make: %s", make)
+    payload = await validate_token(token)
+    routes_logger.info(
+        "GET /vehicle_emissions/models called for user %s with make %s",
+        payload["sub"],
+        make,
+    )
 
     cache_key = f"vehicle_models_{make}"
-    cached_data = await redis_cache.get(cache_key)
-    if cached_data:
-        routes_logger.info("Cache hit for vehicle models")
-        return {"models": cached_data}
-    routes_logger.info("Cache miss for vehicle models. Fetching from database.")
-
     query = """
-        SELECT DISTINCT vehicle_model_name 
-        FROM vehicle_emissions 
-        WHERE vehicle_make_name = :make 
-        ORDER BY vehicle_model_name ASC
-    """
-    try:
-        models = await database.fetch_all(query, values={"make": make})
-        models_list = [model["vehicle_model_name"] for model in models]
-        routes_logger.info(
-            "Query executed successfully. Number of models: %d", len(models)
-        )
-        await redis_cache.set(cache_key, models_list)
-        return {"models": models_list}
-    except Exception as e:
-        routes_logger.error(
-            "Failed to retrieve vehicle models for make %s: %s", make, e
-        )
-        raise HTTPException(status_code=404, detail="Vehicle Models Not Found") from e
+            SELECT DISTINCT vehicle_model_name
+            FROM vehicle_emissions
+            WHERE vehicle_make_name = :make
+            ORDER BY vehicle_model_name ASC
+        """
+    return await fetch_and_cache(
+        cache_key, query, db_params={"make": make}, result_key="models"
+    )
 
 
 @router.get(
@@ -146,6 +124,7 @@ async def get_vehicle_models(
 async def get_vehicle_years(
     make: str = Query(..., description="The manufacturer name (e.g., 'Ferrari')."),
     model: str = Query(..., description="The vehicle model name (e.g., 'F40')."),
+    token: Optional[str] = None,
 ):
     """
     Fetch unique years for a given make and model.
@@ -154,36 +133,24 @@ async def get_vehicle_years(
     :param model: Vehicle model name.
     :return: A list of years for the given make and model.
     """
+    payload = await validate_token(token)
     routes_logger.info(
-        "GET /vehicle_emissions/years called with make: %s, model: %s", make, model
+        "GET /vehicle_emissions/years called for user %s with make %s, model %s",
+        payload["sub"],
+        make,
+        model,
     )
 
     cache_key = f"vehicle_years_{make}_{model}"
-    cached_data = await redis_cache.get(cache_key)
-    if cached_data:
-        routes_logger.info("Cache hit for vehicle years")
-        return {"years": cached_data}
-    routes_logger.info("Cache miss for vehicle years. Fetching from database.")
-
     query = """
-        SELECT DISTINCT year
-        FROM vehicle_emissions
-        WHERE vehicle_make_name = :make AND vehicle_model_name = :model
-        ORDER BY year ASC
-    """
-    try:
-        years = await database.fetch_all(query, values={"make": make, "model": model})
-        years_list = [year["year"] for year in years]
-        routes_logger.info(
-            "Query executed successfully. Number of years: %d", len(years)
-        )
-        await redis_cache.set(cache_key, years_list)
-        return {"years": years_list}
-    except Exception as e:
-        routes_logger.error(
-            "Failed to retrieve years for make %s and model %s: %s", make, model, e
-        )
-        raise HTTPException(status_code=404, detail="Vehicle Years Not Found") from e
+            SELECT DISTINCT year
+            FROM vehicle_emissions
+            WHERE vehicle_make_name = :make AND vehicle_model_name = :model
+            ORDER BY year ASC
+        """
+    return await fetch_and_cache(
+        cache_key, query, db_params={"make": make, "model": model}, result_key="years"
+    )
 
 
 @router.get(
@@ -202,16 +169,54 @@ async def get_vehicle_emissions(
         None, description="ID of the last record from the previous page"
     ),
     limit: int = Query(10, le=100, description="Maximum number of results to retrieve"),
+    token: Optional[str] = None,
 ):
     """
     Retrieve vehicle emissions data with optional filters and pagination.
+    """
+    if not token:
+        routes_logger.info("Not authenticated, No token provided")
+        raise HTTPException(
+            status_code=401, detail="Not authenticated, No token provided"
+        )
 
-    :param vehicle_make_name: (str) Filter results by the vehicle make name.
-    :param year: (int) Filter results by the vehicle model year.
-    :param cursor: (str) ID of the last record from the previous page.
-    :param limit: (int) Maximum number of results to retrieve per page (default is 10, max is 100).
+    # Validate token
+    payload = await validate_token(token)
+    routes_logger.info("Valid token, user %s", {payload["sub"]})
 
-    :return: List of vehicle emissions data with pagination metadata.
+    # Log request details
+    log_request_details(vehicle_make_name, year, cursor, limit)
+
+    # Fetch from cache if available
+    cache_key = generate_cache_key(vehicle_make_name, year, cursor, limit)
+    cached_response = await fetch_from_cache(cache_key)
+    if cached_response:
+        return cached_response
+
+    # Build and execute query
+    base_query, values = build_query(vehicle_make_name, year, cursor, limit)
+    results, next_cursor = await execute_query(base_query, values)
+
+    # Serialize results and cache the response
+    response = await prepare_response(results, next_cursor, cache_key)
+    return response
+
+
+async def validate_token(token: str):
+    """
+    Validate the provided token.
+    """
+    routes_logger.info("Token provided by URL")
+    payload = decode_access_token(token)
+    if not payload:
+        routes_logger.info("Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return payload
+
+
+def log_request_details(vehicle_make_name, year, cursor, limit):
+    """
+    Log details about the incoming request.
     """
     routes_logger.info(
         "Received request for vehicle emissions with filters - Make: %s, Year: %s, "
@@ -222,26 +227,42 @@ async def get_vehicle_emissions(
         limit,
     )
 
-    cache_key = (
+
+def generate_cache_key(vehicle_make_name, year, cursor, limit):
+    """
+    Generate a unique cache key based on the query parameters.
+    """
+    return (
         f"vehicle_emissions_{vehicle_make_name or 'all'}_{year or 'all'}_"
         f"{cursor or 'start'}_{limit}"
     )
+
+
+async def fetch_from_cache(cache_key):
+    """
+    Fetch cached data if available.
+    """
     cached_data = await redis_cache.get(cache_key)
     if cached_data:
         routes_logger.info("Cache hit for vehicle emissions")
-        return {"emissions": cached_data}
+        return cached_data
     routes_logger.info("Cache miss for vehicle emissions. Fetching from database.")
+    return None
 
-    # Base query
+
+def build_query(vehicle_make_name, year, cursor, limit):
+    """
+    Build the database query and its parameters.
+    """
     if APP_ENV == "production":
         base_query = "SELECT * FROM vehicle_emissions"
     else:
         schema_name = f"test_schema_{os.getpid()}"
         base_query = f"SELECT * FROM {schema_name}.vehicle_emissions"
-    conditions = []
-    values = {"limit": limit}
 
-    # Add filters conditionally
+    conditions = []
+    values = {"limit": limit + 1}
+
     if vehicle_make_name:
         conditions.append("vehicle_make_name = :vehicle_make_name")
         values["vehicle_make_name"] = vehicle_make_name
@@ -250,48 +271,46 @@ async def get_vehicle_emissions(
         conditions.append("year = :year")
         values["year"] = year
         routes_logger.debug("Filter applied for year: %d", year)
-
-    # Add cursor-based pagination condition
     if cursor:
         conditions.append("id > :cursor")
         values["cursor"] = cursor
 
-    # Combine base query with conditions if any
     if conditions:
         base_query += " WHERE " + " AND ".join(conditions)
 
-    # Order by ID for consistent cursor behavior and apply limit
     base_query += " ORDER BY id ASC LIMIT :limit"
-    values["limit"] = limit + 1
-    routes_logger.debug("Executing query: %s with values %s", base_query, values)
+    return base_query, values
 
-    # Execute query
+
+async def execute_query(base_query, values):
+    """
+    Execute the database query and return results along with the next cursor.
+    """
+    routes_logger.debug("Executing query: %s with values %s", base_query, values)
     results = await database.fetch_all(query=base_query, values=values)
     routes_logger.info(
-        "Query executed successfully. Number of results: %d", len(results) - 1
+        "Query executed successfully. Number of results: %d", len(results)
     )
 
-    # Set next cursor to the last item's ID in the current result set if results exist
-    if len(results) == limit + 1:
+    if len(results) > values["limit"] - 1:
         next_cursor = results[-2]["id"]
         results = results[:-1]
     else:
         next_cursor = None
 
-    results_serializable = [dict(record) for record in results]
+    return results, next_cursor
 
-    # Serialize the data (handle UUIDs and other non-serializable types)
+
+async def prepare_response(results, next_cursor, cache_key):
+    """
+    Serialize results, prepare the response, and cache it.
+    """
+    results_serializable = [dict(record) for record in results]
     results_serializable = serialize_data(results_serializable)
     routes_logger.debug("Serialized data before caching: %s", results_serializable)
 
-    if results_serializable:
-        response = {"data": results_serializable, "next_cursor": next_cursor}
-    else:
-        response = {"data": [], "next_cursor": None}
-
+    response = {"data": results_serializable, "next_cursor": next_cursor}
     await redis_cache.set(cache_key, response)
-
-    # Ensure a 200 response with an empty list if no data is found
     return response
 
 
@@ -396,17 +415,77 @@ async def compare_vehicles(request: CompareRequest):
     response_class=HTMLResponse,
     tags=["Vehicle Emissions"],
 )
-async def get_compare_page():
+async def get_compare_page(token: Optional[str] = None):
     """
     Endpoint to serve the interactive comparison page.
     """
-    routes_logger.info("GET /vehicle_emissions/compare called")
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    index_path = os.path.join(current_dir, "../static/index.html")
+    if token:
+        routes_logger.info("Token provided by URL")
+        payload = decode_access_token(token)
+        if not payload:
+            routes_logger.info("Invalid or expired token")
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+        routes_logger.info("GET /vehicle_emissions/compare called")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        index_path = os.path.join(current_dir, "../static/index.html")
+        try:
+            with open(index_path, "r", encoding="utf-8") as file:
+                html_content = file.read()
+            return HTMLResponse(content=html_content)
+        except FileNotFoundError as e:
+            routes_logger.error("Error: index.html not found: %s", e)
+            return HTMLResponse(content="Error: index.html not found", status_code=404)
+    routes_logger.info("Not authenticated, No token provided")
+    raise HTTPException(status_code=401, detail="Not authenticated, No token provided")
+
+
+async def set_cache(cache_key: str, data):
+    """
+    Set data in cache.
+    """
+    await redis_cache.set(cache_key, data)
+    routes_logger.info("Cache updated for %s", cache_key)
+
+
+async def fetch_data_from_db(query: str, values: Optional[dict] = None):
+    """
+    Execute a database query and return the results.
+    """
     try:
-        with open(index_path, "r", encoding="utf-8") as file:
-            html_content = file.read()
-        return HTMLResponse(content=html_content)
-    except FileNotFoundError as e:
-        routes_logger.error("Error: index.html not found: %s", e)
-        return HTMLResponse(content="Error: index.html not found", status_code=404)
+        results = await database.fetch_all(query, values=values or {})
+        routes_logger.info(
+            "Query executed successfully. Number of results: %d", len(results)
+        )
+        return results
+    except Exception as e:
+        routes_logger.error("Database query failed: %s", e)
+        raise HTTPException(status_code=500, detail="Database Error") from e
+
+
+async def fetch_and_cache(
+    cache_key: str,
+    query: str,
+    db_params: Optional[dict] = None,
+    result_key: str = "results",
+):
+    """
+    Fetch data from cache or database and update the cache if needed.
+    :param cache_key: The key to look up in cache.
+    :param query: The SQL query to execute if the cache is empty.
+    :param db_params: Parameters for the SQL query.
+    :param cache_key_prefix: Prefix for cache keys.
+    :param result_key: Key for the results in the response.
+    :return: Data retrieved from cache or database.
+    """
+    cached_data = await fetch_from_cache(cache_key)
+    if cached_data:
+        return {result_key: cached_data}
+
+    # Fetch from database if not cached
+    results = await fetch_data_from_db(query, values=db_params)
+    result_list = [record[next(iter(record))] for record in results]
+
+    # Update cache
+    await set_cache(cache_key, result_list)
+    return {result_key: result_list}

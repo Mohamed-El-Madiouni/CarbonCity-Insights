@@ -76,7 +76,9 @@ async def test_login_user_invalid_credentials(test_client):
     login_data = {"username": "invaliduser", "password": "wrongpassword"}
     response = await test_client.post("/login", json=login_data)
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid credentials, please check your username and password"}
+    assert response.json() == {
+        "detail": "Invalid credentials, " "please check your username and password"
+    }
 
 
 def test_login_page():

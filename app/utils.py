@@ -15,7 +15,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from jose import jwt
+import jwt
+from fastapi import HTTPException
 
 
 def serialize_data(data):
@@ -63,5 +64,7 @@ def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         return payload
-    except jwt.JWTError:
-        return None
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code=401, detail="Token has expired") from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail="Invalid token") from e

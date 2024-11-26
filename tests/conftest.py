@@ -16,6 +16,7 @@ from app.database import database
 from app.main import app
 from app.redis_cache import RedisCache
 from app.routes import auth_routes, vehicle_routes
+from app.utils import create_access_token
 
 pytestmark = pytest.mark.asyncio(scope="session")  # Sets the scope for all tests
 
@@ -135,3 +136,13 @@ def user_test():
         "email": "testuser@example.com",
         "password": "securepassword",
     }
+
+
+@pytest.fixture
+def test_token():
+    """
+    Fixture to generate a valid token for testing purposes.
+    """
+    data = {"sub": "test_user"}  # Payload with a test user
+    token = create_access_token(data)
+    return token
