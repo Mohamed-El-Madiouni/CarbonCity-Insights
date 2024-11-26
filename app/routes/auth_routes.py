@@ -154,7 +154,7 @@ async def login_user(user: UserLogin):
     db_user = await database.fetch_one(query, values={"username": user.username})
     if not db_user or not pwd_context.verify(user.password, db_user["hashed_password"]):
         auth_routes_logger.info("Invalid credentials")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Invalid credentials, please check your username and password")
 
     # Create a JWT token
     access_token = create_access_token(data={"sub": db_user["username"]})
