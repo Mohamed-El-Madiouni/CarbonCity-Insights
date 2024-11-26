@@ -12,7 +12,7 @@ Functions:
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from jose import jwt
@@ -47,7 +47,7 @@ def create_access_token(data: dict):
     :param data: The data to be included in the token.
     :return: A signed JWT token.
     """
-    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRATION_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRATION_MINUTES)
     to_encode = data.copy()
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
