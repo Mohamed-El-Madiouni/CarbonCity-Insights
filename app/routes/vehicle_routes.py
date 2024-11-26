@@ -1,13 +1,10 @@
 """
 Vehicle Emissions API Endpoint
 
-This module provides endpoints for user authentication and vehicle emissions data.
-It includes functionalities for registering and logging in users, as well as
-retrieving, filtering, and comparing vehicle emissions data.
+This module provides endpoints for vehicle emissions data.
+It includes functionalities for retrieving, filtering, and comparing vehicle emissions data.
 
 Endpoints:
-- User registration and login.
-- Protected endpoints requiring authentication.
 - Retrieval of vehicle makes, models, and years.
 - Comparison of vehicle emissions.
 """

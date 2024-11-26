@@ -15,7 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from app.database import database
 from app.main import app
 from app.redis_cache import RedisCache
-from app.routes import vehicle_routes
+from app.routes import auth_routes, vehicle_routes
 
 pytestmark = pytest.mark.asyncio(scope="session")  # Sets the scope for all tests
 
@@ -45,9 +45,11 @@ def set_test_environment():
     """
     original_env = os.getenv("APP_ENV", "production")
     os.environ["APP_ENV"] = "test"
+    importlib.reload(auth_routes)
     importlib.reload(vehicle_routes)
     yield
     os.environ["APP_ENV"] = original_env
+    importlib.reload(auth_routes)
     importlib.reload(vehicle_routes)
 
 
@@ -73,6 +75,17 @@ async def setup_test_database():
                 carbon_emission_g FLOAT
             );
         """
+        )
+        await database.execute(
+            f"""
+            CREATE TABLE {schema_name}.users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL UNIQUE,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                hashed_password TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE
+            );
+            """
         )
         await database.execute(
             f"""
@@ -110,3 +123,15 @@ def database_test_url():
     """
     schema_name = f"test_schema_{os.getpid()}"  # Uses PID to create a unique name
     return os.getenv("DATABASE_URL") + f"?options=-csearch_path={schema_name}"
+
+
+@pytest.fixture
+def user_test():
+    """
+    Fixture to provide test user data.
+    """
+    return {
+        "username": "testuser",
+        "email": "testuser@example.com",
+        "password": "securepassword",
+    }

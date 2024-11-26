@@ -3,6 +3,10 @@ Authentication API Endpoints
 
 This module provides endpoints for user authentication,
 including registration, login, and protected routes.
+
+Endpoints:
+- User registration and login.
+- Protected endpoints requiring authentication.
 """
 
 import logging
@@ -92,7 +96,12 @@ async def register_user(user: UserCreate):
     Returns:
         dict: Success message.
     """
-    query = "SELECT * FROM users WHERE username = :username OR email = :email"
+    if APP_ENV == "production":
+        query = "SELECT * FROM users WHERE username = :username OR email = :email"
+    else:
+        schema_name = f"test_schema_{os.getpid()}"
+        query = f"SELECT * FROM {schema_name}.users WHERE username = :username OR email = :email"
+
     existing_user = await database.fetch_one(
         query, values={"username": user.username, "email": user.email}
     )
@@ -103,10 +112,17 @@ async def register_user(user: UserCreate):
         )
 
     hashed_password = pwd_context.hash(user.password)
-    query = (
-        "INSERT INTO users (username, email, hashed_password) VALUES "
-        "(:username, :email, :hashed_password)"
-    )
+    if APP_ENV == "production":
+        query = (
+            "INSERT INTO users (username, email, hashed_password) VALUES "
+            "(:username, :email, :hashed_password)"
+        )
+    else:
+        schema_name = f"test_schema_{os.getpid()}"
+        query = (
+            f"INSERT INTO {schema_name}.users (username, email, hashed_password) VALUES "
+            "(:username, :email, :hashed_password)"
+        )
     await database.execute(
         query,
         values={
@@ -130,7 +146,11 @@ async def login_user(user: UserLogin):
     Returns:
         dict: A JWT access token and token type.
     """
-    query = "SELECT * FROM users WHERE username = :username"
+    if APP_ENV == "production":
+        query = "SELECT * FROM users WHERE username = :username"
+    else:
+        schema_name = f"test_schema_{os.getpid()}"
+        query = f"SELECT * FROM {schema_name}.users WHERE username = :username"
     db_user = await database.fetch_one(query, values={"username": user.username})
     if not db_user or not pwd_context.verify(user.password, db_user["hashed_password"]):
         auth_routes_logger.info("Invalid credentials")
