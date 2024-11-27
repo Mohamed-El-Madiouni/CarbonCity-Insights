@@ -38,6 +38,7 @@ async def test_vehicle_emissions_endpoint(test_client, test_token):
     Verifies that the endpoint interacts with the database correctly and
     returns the expected results with proper HTTP status codes.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     assert response.status_code == 200
     data = response.json()
@@ -54,6 +55,7 @@ async def test_vehicle_emissions_with_filters(test_client, test_token):
     Ensures that the endpoint filters results correctly based on the
     provided query parameters (e.g., vehicle_make_name).
     """
+    test_token, _ = test_token
     response = await test_client.get(
         f"/vehicle_emissions?" f"vehicle_make_name=Make A&token={test_token}"
     )
@@ -71,6 +73,7 @@ async def test_empty_schema_behavior(test_client, test_token):
 
     Ensures that the database and endpoint handle empty schemas gracefully.
     """
+    test_token, _ = test_token
     schema_name = f"test_schema_{os.getpid()}"  # Uses PID to create a unique name
     await database.execute(f"DELETE FROM {schema_name}.vehicle_emissions; ")
     response = await test_client.get(f"/vehicle_emissions?token={test_token}")
@@ -80,17 +83,17 @@ async def test_empty_schema_behavior(test_client, test_token):
 
 
 @pytest.mark.asyncio
-async def test_redis_cache_mock(mock_redis_cache):
+async def test_redis_cache_mock(redis_cache):
     """
     Test that the mock RedisCache works as expected.
     """
     # Test cache retrieval with a JSON value
-    mock_redis_cache.redis.get.return_value = '{"key": "cached_value"}'
-    value = await mock_redis_cache.get("test_key")
+    redis_cache.redis.get.return_value = '{"key": "cached_value"}'
+    value = await redis_cache.get("test_key")
     assert value == {"key": "cached_value"}
 
     # Testing caching
-    await mock_redis_cache.set("test_key", {"key": "new_value"})
-    mock_redis_cache.redis.set.assert_called_with(
+    await redis_cache.set("test_key", {"key": "new_value"})
+    redis_cache.redis.set.assert_called_with(
         "test_key", '{"key": "new_value"}', ex=2160000
     )

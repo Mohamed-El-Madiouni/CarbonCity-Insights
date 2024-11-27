@@ -16,6 +16,7 @@ async def test_get_vehicle_emissions_default_response(test_client, test_token):
     This test verifies that the /vehicle_emissions endpoint returns a 200 status code
     and that the response format is a dictionary.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
@@ -29,6 +30,7 @@ async def test_get_vehicle_emissions_response_schema(test_client, test_token):
     This test checks that each item in the data returned by /vehicle_emissions
     includes the expected fields.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     expected_keys = {
         "id",
@@ -52,6 +54,7 @@ async def test_get_vehicle_emissions_pagination(test_client, test_token):
     This test verifies that the endpoint returns the correct number of results
     when using the limit and offset query parameters.
     """
+    test_token, _ = test_token
     response_paginated = await test_client.get(
         f"/vehicle_emissions?limit=5&token={test_token}"
     )
@@ -68,6 +71,7 @@ async def test_filter_by_vehicle_make(test_client, test_token):
     This test verifies that the /vehicle_emissions endpoint filters results
     correctly when a specific vehicle make (e.g., Ferrari) is provided.
     """
+    test_token, _ = test_token
     response_filtered_make = await test_client.get(
         f"/vehicle_emissions?vehicle_make_name=Ferrari&token={test_token}"
     )
@@ -84,6 +88,7 @@ async def test_filter_by_year(test_client, test_token):
     This test verifies that the /vehicle_emissions endpoint correctly filters results
     when a specific year (e.g., 2010) is provided.
     """
+    test_token, _ = test_token
     response_filtered_year = await test_client.get(
         f"/vehicle_emissions?" f"year=2010&token={test_token}"
     )
@@ -100,6 +105,7 @@ async def test_pagination_last_page(test_client, test_token):
     This test verifies that the pagination system correctly identifies when
     there are no additional pages.
     """
+    test_token, _ = test_token
     response_last_page = await test_client.get(
         f"/vehicle_emissions?year=2010&vehicle_make_name=Ferrari&limit=100&token={test_token}"
     )
@@ -116,6 +122,7 @@ async def test_empty_result_with_non_existent_filter(test_client, test_token):
     This test verifies that when a non-existent vehicle make is provided,
     the response returns an empty list or equivalent.
     """
+    test_token, _ = test_token
     response_non_existent = await test_client.get(
         f"/vehicle_emissions?vehicle_make_name=NonExistentMake&token={test_token}"
     )
@@ -132,6 +139,7 @@ async def test_next_cursor_type(test_client, test_token):
     This test checks that the next_cursor field, if present in the response,
     is of type string, indicating more pages are available.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions?limit=1&token={test_token}")
     assert response.status_code == 200
     # Check if "next_cursor" is of type str
@@ -144,6 +152,7 @@ async def test_get_vehicle_makes(test_client, test_token):
     Test the /vehicle_emissions/makes endpoint.
     Verifies that the endpoint returns a 200 status code and a list of vehicle makes.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions/makes?token={test_token}")
     assert response.status_code == 200
     assert isinstance(response.json(), dict)  # Assuming the response is a dict
@@ -157,6 +166,7 @@ async def test_get_vehicle_models(test_client, test_token):
     Verifies that the endpoint returns models for a valid make
     and responds correctly to invalid input.
     """
+    test_token, _ = test_token
     valid_make = "Toyota"
     response = await test_client.get(
         f"/vehicle_emissions/models?" f"make={valid_make}&token={test_token}"
@@ -182,6 +192,7 @@ async def test_get_vehicle_years(test_client, test_token):
     Test the /vehicle_emissions/years endpoint.
     Verifies that the endpoint returns years for a valid make and model, and handles invalid input.
     """
+    test_token, _ = test_token
     valid_make = "Toyota"
     valid_model = "Corolla"
     response = await test_client.get(
@@ -207,6 +218,7 @@ async def test_get_compare_endpoint(test_client, test_token):
     Test the GET /vehicle_emissions/compare endpoint.
     Verifies that the endpoint renders an HTML page.
     """
+    test_token, _ = test_token
     response = await test_client.get(f"/vehicle_emissions/compare?token={test_token}")
     assert response.status_code == 200
     assert "text/html" in response.headers["Content-Type"]  # Verify HTML content
@@ -218,6 +230,7 @@ async def test_post_compare_endpoint(test_client, test_token):
     Test the POST /vehicle_emissions/compare endpoint.
     Verifies the comparison functionality with valid and invalid payloads.
     """
+    test_token, _ = test_token
     valid_payload = {
         "vehicle_1": {"make": "Alfa Romeo", "model": "164", "year": 1994},
         "vehicle_2": {"make": "Ferrari", "model": "Testarossa", "year": 1985},

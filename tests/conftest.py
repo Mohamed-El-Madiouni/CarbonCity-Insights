@@ -5,6 +5,7 @@ Provides pytest fixtures and configuration for running tests against the FastAPI
 including database setup, test environment configuration, and HTTP client initialization.
 """
 
+import asyncio
 import importlib
 import os
 from unittest.mock import AsyncMock
@@ -22,7 +23,7 @@ pytestmark = pytest.mark.asyncio(scope="session")  # Sets the scope for all test
 
 
 @pytest.fixture(autouse=True)
-async def mock_redis_cache():
+async def redis_cache():
     """
     Mock the RedisCache instance for tests.
     """
@@ -33,13 +34,56 @@ async def mock_redis_cache():
 
     vehicle_routes.redis_cache = redis_mock
 
-    # Configure the `incr` method to simulate Redis increment behavior
-    redis_mock.redis.incr = AsyncMock(side_effect=mock_redis_incr)
+    # Track tasks for managing expirations
+    redis_storage = {}
+    expiration_tasks = []  # Track tasks for managing expirations
 
-    # Configure the `expire` method to do nothing
-    redis_mock.redis.expire = AsyncMock(return_value=None)
+    async def incr_side_effect(key):
+        if key not in redis_storage:
+            redis_storage[key] = 0
+        redis_storage[key] += 1
+        return redis_storage[key]
+
+    async def ttl_side_effect(key):
+        """
+        Simulates retrieving the TTL of a key. Returns -2 if the key has expired.
+        """
+        if key in redis_storage:
+            return 3  # Initially set TTL
+        return -2  # Indicates that the key has expired
+
+    async def expire_side_effect(key, ttl):
+        """
+        Simulates setting a TTL on a key. Deletes the key after expiration.
+        """
+        ttl_to_use = 3 if os.getenv("APP_ENV") == "test" else ttl
+        if key in redis_storage:
+            # Launch an asynchronous task to delete the key after the TTL
+            task = asyncio.create_task(simulate_key_expiration(key, ttl_to_use))
+            expiration_tasks.append(task)
+
+    async def simulate_key_expiration(key, ttl):
+        """
+        Deletes a key after a certain delay (TTL) to simulate expiration.
+        """
+        await asyncio.sleep(ttl)
+        if key in redis_storage:
+            del redis_storage[key]
+
+    redis_mock.redis.incr.side_effect = incr_side_effect
+    redis_mock.redis.ttl.side_effect = ttl_side_effect
+    redis_mock.redis.expire.side_effect = expire_side_effect
 
     yield redis_mock
+
+    # Clean up the simulated storage after the test
+    redis_storage.clear()
+
+    # Cancel remaining expiration tasks
+    for task in expiration_tasks:
+        if not task.done():
+            task.cancel()
+    await asyncio.gather(*expiration_tasks, return_exceptions=True)
 
 
 # Dictionary to simulate Redis storage
@@ -173,4 +217,15 @@ def test_token():
     """
     data = {"sub": "test_user"}  # Payload with a test user
     token = create_access_token(data)
-    return token
+    data = {"sub": "other_user"}  # Payload with a test user
+    other_token = create_access_token(data)
+    return token, other_token
+
+
+@pytest.fixture
+async def clear_redis(mock_redis_cache):
+    """
+    Clear Redis data for a clean state before tests.
+    """
+    await mock_redis_cache.redis.delete("rate_limit:test_user:vehicle_emissions")
+    yield
