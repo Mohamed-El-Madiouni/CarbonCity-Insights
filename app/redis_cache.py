@@ -7,12 +7,35 @@ It also includes a global instance `redis_cache` for use throughout the applicat
 """
 
 import json
+import logging
 import os
 
 import redis.asyncio as redis
 from dotenv import load_dotenv
+from fastapi import HTTPException
 
 from app.utils import serialize_data
+
+# Configure log directory
+log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Configure logger
+log_path = os.path.join(log_dir, "routes.log")
+logger = logging.getLogger("routes_logger")
+logger.setLevel(logging.INFO)
+
+# File and console handlers for routes_logger
+file_handler = logging.FileHandler(log_path)
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+console_handler = logging.StreamHandler()
+
+# Adding handlers to routes_logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 # Load environment variables
 load_dotenv()
@@ -100,6 +123,48 @@ class RedisCache:
             redis.exceptions.RedisError: If an error occurs during the close operation.
         """
         await self.redis.close()
+
+    async def rate_limit(self, token: str, limit: int, window: int, endpoint: str):
+        """
+        Implement rate limiting based on a token.
+        :param token: Unique token for the user.
+        :param limit: Maximum number of requests allowed.
+        :param window: Time window in seconds.
+        """
+        key = f"rate_limit:{token}:{endpoint}"
+        # Increment the request count
+        current = await self.redis.incr(key)
+        if current == 1:
+            # Set expiration on first request
+            await self.redis.expire(key, window)
+            logger.info(
+                "Rate limit initialized for user: %s. Window: %s seconds.",
+                token,
+                window,
+            )
+        if current > limit:
+            # Log the violation
+            logger.warning(
+                "Rate limit exceeded for user: %s. "
+                "Limit: %s, Window: %s seconds, Requests: %s.",
+                token,
+                limit,
+                window,
+                current,
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="You have reached the limit of requests allowed per minute. "
+                "Please wait one minute and try again later.",
+            )
+        # Log valid requests
+        logger.info(
+            "Request %s/%s for user: '%s' within %s seconds.",
+            current,
+            limit,
+            token,
+            window,
+        )
 
 
 # Global RedisCache instance for application-wide use

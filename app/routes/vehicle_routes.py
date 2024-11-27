@@ -14,7 +14,7 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -52,6 +52,40 @@ load_dotenv()
 APP_ENV = os.getenv("APP_ENV", "production")
 
 router = APIRouter()
+
+
+class CompareRequest(BaseModel):
+    """
+    Data model for vehicle comparison requests.
+
+    Attributes:
+        vehicle_1: Details of the first vehicle, including make, model, and year.
+        vehicle_2: Details of the second vehicle, including make, model, and year.
+    """
+
+    vehicle_1: dict
+    vehicle_2: dict
+
+
+class VehicleEmissionsQuery(BaseModel):
+    """
+    Represents query parameters for fetching vehicle emissions data.
+
+    Attributes:
+        vehicle_make_name (Optional[str]): A filter for the make of the vehicle.
+        year (Optional[int]): A filter for the year of the vehicle model.
+        cursor (Optional[str]): An identifier for cursor-based pagination,
+            indicating the last record from the previous page.
+        limit (int): The maximum number of results to retrieve per page
+            (default is 10, maximum is 100).
+    """
+
+    vehicle_make_name: Optional[str] = Query(None, description="Filter by vehicle make")
+    year: Optional[int] = Query(None, description="Filter by vehicle model year")
+    cursor: Optional[str] = Query(
+        None, description="ID of the last record from the previous page"
+    )
+    limit: int = Query(10, le=100, description="Maximum number of results to retrieve")
 
 
 @router.get(
@@ -94,6 +128,7 @@ async def get_vehicle_models(
     Fetch unique vehicle models for a given make.
 
     :param make: Vehicle make name (e.g., 'Ferrari').
+    :param token: JWT token for user authentication.
     :return: A list of vehicle models for the given make.
     """
     payload = await validate_token(token)
@@ -131,6 +166,7 @@ async def get_vehicle_years(
 
     :param make: Vehicle make name.
     :param model: Vehicle model name.
+    :param token: JWT token for user authentication.
     :return: A list of years for the given make and model.
     """
     payload = await validate_token(token)
@@ -161,19 +197,31 @@ async def get_vehicle_years(
     tags=["Vehicle Emissions"],
 )
 async def get_vehicle_emissions(
-    vehicle_make_name: Optional[str] = Query(
-        None, description="Filter by vehicle make"
-    ),
-    year: Optional[int] = Query(None, description="Filter by vehicle model year"),
-    cursor: Optional[str] = Query(
-        None, description="ID of the last record from the previous page"
-    ),
-    limit: int = Query(10, le=100, description="Maximum number of results to retrieve"),
+    request: Request,
+    vehicle: VehicleEmissionsQuery = Depends(),
     token: Optional[str] = None,
 ):
     """
     Retrieve vehicle emissions data with optional filters and pagination.
     """
+    # Get client IP for logging
+    client_ip = request.client.host
+    client_ip = "Fake IP"
+    print(client_ip)
+
+    # Apply Rate Limiting
+    await redis_cache.rate_limit(
+        token=decode_access_token(token)["sub"],
+        limit=10,
+        window=60,
+        endpoint="vehicle_emissions",
+    )
+    routes_logger.info(
+        "Request received from IP: 'IP ADRESS NOT RECOVERED TO COMPLY WITH RGPD' "
+        "for user: %s.",
+        {decode_access_token(token)["sub"]},
+    )
+
     if not token:
         routes_logger.info("Not authenticated, No token provided")
         raise HTTPException(
@@ -185,16 +233,22 @@ async def get_vehicle_emissions(
     routes_logger.info("Valid token, user %s", {payload["sub"]})
 
     # Log request details
-    log_request_details(vehicle_make_name, year, cursor, limit)
+    log_request_details(
+        vehicle.vehicle_make_name, vehicle.year, vehicle.cursor, vehicle.limit
+    )
 
     # Fetch from cache if available
-    cache_key = generate_cache_key(vehicle_make_name, year, cursor, limit)
+    cache_key = generate_cache_key(
+        vehicle.vehicle_make_name, vehicle.year, vehicle.cursor, vehicle.limit
+    )
     cached_response = await fetch_from_cache(cache_key)
     if cached_response:
         return cached_response
 
     # Build and execute query
-    base_query, values = build_query(vehicle_make_name, year, cursor, limit)
+    base_query, values = build_query(
+        vehicle.vehicle_make_name, vehicle.year, vehicle.cursor, vehicle.limit
+    )
     results, next_cursor = await execute_query(base_query, values)
 
     # Serialize results and cache the response
@@ -314,32 +368,33 @@ async def prepare_response(results, next_cursor, cache_key):
     return response
 
 
-class CompareRequest(BaseModel):
-    """
-    Data model for vehicle comparison requests.
-
-    Attributes:
-        vehicle_1: Details of the first vehicle, including make, model, and year.
-        vehicle_2: Details of the second vehicle, including make, model, and year.
-    """
-
-    vehicle_1: dict
-    vehicle_2: dict
-
-
 @router.post(
     "/vehicle_emissions/compare",
     summary="Compare two vehicles",
     description="Compare carbon emissions between two vehicles using their make, model, and year.",
     tags=["Vehicle Emissions"],
 )
-async def compare_vehicles(request: CompareRequest):
+async def compare_vehicles(
+    request: CompareRequest, token: str = Depends(decode_access_token)
+):
     """
     Compare carbon emissions between two vehicles.
 
     :param request: A JSON payload containing details of the two vehicles to compare.
+    :param token: JWT token for user authentication and rate limiting.
     :return: Comparison results, including a percentage difference and a summary message.
     """
+
+    # Apply rate limiting
+    await redis_cache.rate_limit(
+        token=token["sub"], limit=5, window=60, endpoint="compare"
+    )
+    routes_logger.info(
+        "Request received from IP: 'IP ADRESS NOT RECOVERED TO COMPLY WITH RGPD' "
+        "for user: %s.",
+        token["sub"],
+    )
+
     routes_logger.info("POST /vehicle_emissions/compare called")
     query = """
         SELECT vehicle_make_name, vehicle_model_name, year, carbon_emission_g
@@ -474,7 +529,6 @@ async def fetch_and_cache(
     :param cache_key: The key to look up in cache.
     :param query: The SQL query to execute if the cache is empty.
     :param db_params: Parameters for the SQL query.
-    :param cache_key_prefix: Prefix for cache keys.
     :param result_key: Key for the results in the response.
     :return: Data retrieved from cache or database.
     """

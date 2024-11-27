@@ -33,7 +33,35 @@ async def mock_redis_cache():
 
     vehicle_routes.redis_cache = redis_mock
 
+    # Configure the `incr` method to simulate Redis increment behavior
+    redis_mock.redis.incr = AsyncMock(side_effect=mock_redis_incr)
+
+    # Configure the `expire` method to do nothing
+    redis_mock.redis.expire = AsyncMock(return_value=None)
+
     yield redis_mock
+
+
+# Dictionary to simulate Redis storage
+mock_redis_storage = {}
+
+
+def mock_redis_incr(key: str) -> int:
+    """
+    Simulate the Redis `incr` operation.
+    """
+    if key not in mock_redis_storage:
+        mock_redis_storage[key] = 0
+    mock_redis_storage[key] += 1
+    return mock_redis_storage[key]
+
+
+@pytest.fixture(autouse=True)
+def reset_mock_redis_storage():
+    """
+    Reset the mock Redis storage before each test.
+    """
+    mock_redis_storage.clear()
 
 
 @pytest.fixture(scope="session", autouse=True)

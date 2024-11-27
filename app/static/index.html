@@ -150,6 +150,15 @@
                     body: JSON.stringify({ vehicle_1: vehicle1, vehicle_2: vehicle2 })
                 });
 
+                if (response.status === 429) {
+                    // Handle rate limit exceeded
+                    const resultElement = document.getElementById("result");
+                    resultElement.className = "error";
+                    resultElement.innerText = "You have reached the limit of requests allowed per minute. Please wait one minute and try again later.";
+                    console.error("Rate limit exceeded"); // Log the error
+                    return;
+                }
+
                 if (!response.ok) {
                     throw new Error(`Error: ${response.status}`);
                 }
@@ -160,6 +169,7 @@
                 const { message, percentage_difference } = result.comparison;
 
                 const resultElement = document.getElementById("result");
+                resultElement.className = "";
                 resultElement.innerHTML = ""; // Clear previous results
 
                 // Replace percentage placeholder
@@ -168,7 +178,9 @@
                 resultElement.innerHTML = formattedMessage;
             } catch (error) {
                 console.error("Error during vehicle comparison:", error); // Log error
-                document.getElementById("result").innerText = `An error occurred: ${error.message}`;
+                const resultElement = document.getElementById("result");
+                resultElement.className = "error"; // Set error style
+                resultElement.innerText = `An unexpected error occurred. Please try again later.`;
             }
         }
 
