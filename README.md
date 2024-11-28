@@ -1,71 +1,89 @@
 # CarbonCity Insights
 
-## CarbonCity Insights - Project Overview
-
-**CarbonCity Insights** is a data engineering project showcasing senior-level skills in API development, database optimization, and performance monitoring. The project focuses on building a robust, scalable API to provide insights into carbon emissions and energy consumption.
-
-### Technologies Used
-- **Python**: Core programming language for the entire project.
-- **FastAPI**: For building the API endpoints.
-- **PostgreSQL**: Relational database for storing and querying data.
-- **Redis**: In-memory caching system to optimize API performance.
-- **GitHub Actions**: CI/CD pipeline for automated testing and deployment.
-- **Render**: Cloud hosting platform for deploying the API.
-- **Pytest**: For writing and running unit and integration tests.
-- **Pydantic**: For data validation and schema enforcement.
-<br>
-<br>
+`CarbonCity Insights` is a comprehensive data engineering and API development project designed to provide vehicle emission insights. It includes features such as user authentication, advanced rate limiting, caching, interactive interfaces, and integration with external APIs for environmental data.
 
 ---
-
-### Project Goals
-1. To develop a well-architected API that aggregates environmental data from various sources.
-2. To demonstrate advanced data engineering practices, including caching, monitoring, and database optimization.
-3. To provide an interactive interface for comparing vehicle emissions.
-
-<br>
-<br>
-
----
-
 ## Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [Project Structure](#project-structure)
-3. [Setup and Installation](#setup-and-installation)
-4. [Configuration](#configuration)
-5. [API Documentation](#api-documentation)
-   1. [Endpoints Overview](#endpoints-overview)
-   2. [Vehicle Emissions Endpoint](#vehicle-emissions-endpoint)
-6. [Running Tests](#running-tests)
-7. [Logging](#logging)
-8. [Contributing](#contributing)
+1. [Features](#features)
+2. [Technologies Used](#technologies-used)
+3. [Project Goals](#project-goals)
+4. [Project Structure](#project-structure)
+5. [Setup and Installation](#setup-and-installation)
+6. [Configuration](#configuration)
+7. [API Documentation](#api-documentation)
+   1. [Authentication Endpoints](#authentication-endpoints)
+   2. [Vehicle Emissions Endpoints](#vehicle-emissions-endpoints)
+8. [Running Tests](#running-tests)
+9. [Logging](#logging)
+10. [Rate Limiting](#rate-limiting)
+11. [Contributing](#contributing)
 <br>
 <br>
 ---
 
-## Project Overview
+## Features
 
-CarbonCity Insights processes and analyzes vehicle and city data to calculate carbon emissions. The project uses Python, FastAPI, and PostgreSQL to provide a scalable backend API. It includes pagination, filtering, and efficient database querying to handle large datasets effectively.
+1. User authentication with JWT.
+2. Rate limiting to prevent abuse, implemented via Redis.
+3. Vehicle emissions API with filtering, pagination, and comparison capabilities.
+4. Interactive web pages for comparing vehicle emissions.
+5. Backend integration with the Carbon Interface API for real-time emissions data.
+6. Database operations with PostgreSQL, including schema management and data deduplication.
+7. Asynchronous processing and caching for performance optimization.
+8. CI/CD pipelines with linting, formatting, and testing using GitHub Actions.
+9. Detailed logging for debugging and performance monitoring.
+
+---
+
+## Technologies Used
+
+- **Python**: Core programming language for the entire project.
+- **FastAPI**: Framework for API development.
+- **PostgreSQL**: Relational database for storing and querying data.
+- **Redis**: In-memory caching and rate limiting.
+- **GitHub Actions**: CI/CD pipeline for automated testing and deployment.
+- **Render**: Cloud hosting platform for deploying the API.
+- **Pytest**: Unit, integration, and performance testing.
+- **Pydantic**: For data validation and schema enforcement.
+- **JWT**: JSON Web Tokens for secure user authentication.
+- **HTML/CSS/JavaScript**: For user-facing interfaces like login, registration, and vehicle emissions comparison.
 <br>
 <br>
+
+---
+
+## Project Goals
+
+1. Develop a scalable API aggregating vehicle emissions data from external APIs and storing it efficiently.
+2. Implement advanced data engineering practices, including caching, monitoring, and database optimization.
+3. Provide a feature-rich comparison interface for analyzing carbon emissions.
+4. Showcase rate-limiting, authentication, and real-world data fetching pipelines.
+
+<br>
+<br>
+
 ---
 
 ## Project Structure
-- **.github/** : CI/CD workflows for automated testing and deployment
-- **app/** : Application logic
-  - **routes/** : FastAPI route definitions
-  - **services/** : Business logic and data processing
-  - **database.py** : Database connection and schema management
-  - **main.py** : FastAPI application entry point
-- **tests/** : Unit and integration tests
-  - **test_routes/** : Route-specific tests
-  - **test_services/** : Service and database integration tests
-  - **conftest.py** : Common fixtures for testing
-- **.env** : Environment variables
-- **README.md** : Project documentation
-- **requirements.txt** : Python dependencies
-- **pytest.ini** : Pytest configuration
+- **`.github/`**: CI/CD workflows for testing, linting, and deployment.
+- **`app/`**: Application logic.
+  - **`routes/`**: FastAPI route definitions for authentication and vehicle emissions.
+  - **`services/`**: Business logic and data fetching from external APIs.
+  - **`static/`**: HTML files for login, registration, and vehicle comparison.
+  - **`database.py`**: Database connection and schema management.
+  - **`main.py`**: FastAPI application entry point.
+  - **`redis_cache.py`**: Redis caching utilities.
+  - **`utils.py`**: Utilities for JWT, serialization, and helpers.
+- **`tests/`**: Unit, integration, and rate-limiting tests.
+  - **`test_routes/`**: Route-specific tests.
+  - **`test_services/`**: Service and database integration tests.
+  - **`test_rate_limiting.py`**: Tests for rate-limiting functionality.
+  - **`conftest.py`**: Common test fixtures.
+- **`.env`**: Environment variables for configuration.
+- **`README.md`**: Project documentation.
+- **`requirements.txt`**: Python dependencies.
+- **`pytest.ini`**: Pytest configuration for logging and async tests.
 <br>
 <br>
 ---
@@ -75,44 +93,55 @@ CarbonCity Insights processes and analyzes vehicle and city data to calculate ca
 ### Prerequisites
 - Python >= 3.10
 - PostgreSQL >= 12
+- Redis >= 5.0
 - Virtual environment tool (`venv`, `virtualenv`, etc.)
 
 ### Steps
-1. Clone the repository :
+1. Clone the repository:
 ```bash
 git clone https://github.com/mohamed-el-madiouni/CarbonCity-Insights.git
 cd CarbonCity-Insights
 ```
-2. Create a virtual environment and install dependencies :
+2. Create a virtual environment and install dependencies:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-3. Configure environment variables in the `.env` file :
+3. Configure environment variables in the `.env` file:
 ```bash
 DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
 APP_ENV=production/test
+REDIS_URL=redis://URL:6379/0
+JWT_SECRET_KEY=secret_key
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_MINUTES=300
 RENDER_SERVICE_ID=srv-***********
 CARBON_INTERFACE_API_KEY=**************
 NOTIFICATION_EMAIL=xxxx@gmail.com
 EMAIL_PASSWORD=**************
 
 ```
-4.  Run the FastAPI application :
+4.  Run the FastAPI application:
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-The API documentation will be available at http://localhost:8000/docs.
+The API documentation will be available at https://carboncity-insights.onrender.com/docs.
 <br>
 <br>
 ---
 
 ## Configuration
 
-- `.env` **file**: All critical configurations are managed through environment variables.
-- **Database setup**: Ensure that the production and test databases are configured and accessible.
-- **CI/CD Integration**: The GitHub Actions workflow file (`.github/workflows/ci_cd.yaml`) automates testing and deployment.
+### `.env` File
+
+Critical configurations, such as database credentials, Redis settings, and API keys, are managed through the `.env` file.
+
+### Database setup
+Ensure that the production and test databases are configured and accessible.
+
+### CI/CD Integration
+The GitHub Actions workflow (`.github/workflows/ci_cd.yaml`) automates linting, testing, and deployment to Render.
 <br>
 <br>
 ---
@@ -121,12 +150,84 @@ The API documentation will be available at http://localhost:8000/docs.
 
 **API URL** : https://carboncity-insights.onrender.com
 
-### Endpoints Overview
+---
+
+### Authentication Endpoints
+| Endpoint    | Method | Description                     |
+|-------------|--------|---------------------------------|
+| `/register` | POST   | Register a new user.           |
+| `/login`    | POST   | Authenticate a user.           |
+
+---
+
+#### `/register`
+
+**Method**: `POST`  
+**Description**: Registers a new user by storing their email and hashed password.
+
+**Parameters**:
+`
+- `email` (required): The user's email.
+- `password` (required): The user's password.
+`
+
+**Example Request**:
+```bash
+curl -X POST "https://carboncity-insights.onrender.com/register" \
+-H "Content-Type: application/json" \
+-d '{
+    "username": "username",
+    "email": "user@example.com",
+    "password": "securepassword"
+}'
+```
+
+**Example Response**:
+```bash
+{
+    "message": "User registered successfully."
+}
+```
+
+---
+
+#### `/login`
+
+**Method**: `POST  
+**Description**: Authenticates a user and generates a JWT token.
+
+**Parameters**:
+`
+- `email` (required): The user's email.
+- `password` (required): The user's password.
+`
+
+**Example Request**:
+```bash
+curl -X POST "https://carboncity-insights.onrender.com/login" \
+-H "Content-Type: application/json" \
+-d '{
+    "username": "username",
+    "password": "securepassword"
+}'
+```
+
+**Example Response**:
+```bash
+{
+    "message"= "Login successful!",
+    "access_token": "eyJhbGciOiJIUzI1...",
+    "token_type": "bearer"
+}
+```
+
+---
+
+### Vehicle Emissions Endpoints
+
 
 | Endpoint                     | Method | Description |
 |------------------------------|--------|-------------|
-| `/`                          | GET    | Returns a welcome message. |
-| `/db_test`                   | GET    | Tests the database connection. |
 | `/vehicle_emissions`         | GET    | Retrieves vehicle emissions data with filters. |
 | `/vehicle_emissions/makes`   | GET    | Retrieve the list of available vehicle manufacturers. |
 | `/vehicle_emissions/models`  | GET    | Retrieve the list of models for a specific manufacturer. |
@@ -136,7 +237,7 @@ The API documentation will be available at http://localhost:8000/docs.
 
 ### Vehicle Emissions Endpoint
 
-**URL**: `/vehicle_emissions`  
+#### `/vehicle_emissions`  
 **Method**: `GET`  
 **Description**: Fetches vehicle emissions data, supports filtering and pagination.
 
@@ -148,7 +249,7 @@ The API documentation will be available at http://localhost:8000/docs.
 
 **Example Request**:
 ```bash
-curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions?vehicle_make_name=Ferrari&year=2010&limit=5"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions?vehicle_make_name=Ferrari&year=2010&limit=5&token=eyJhbG..."
 ```
 
 **Example Response**:
@@ -169,16 +270,17 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions?vehicle_
 }
 ```
 <br>
+---
 
-**URL**: `/vehicle_emissions/makes`  
+#### `/vehicle_emissions/makes`  
 **Method**: `GET`  
-**Description**: Retrieve the list of available vehicle manufacturers.
+**Description**: Retrieve a list of available vehicle manufacturers.
 
 **Parameters**: None
 
 **Example Request**:
 ```bash
-curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/makes"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/makes?token=eyJhbG..."
 ```
 
 **Example Response**:
@@ -191,8 +293,8 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/makes"
 }
 ```
 <br>
-
-**URL**: `/vehicle_emissions/models`  
+---
+#### `/vehicle_emissions/models`  
 **Method**: `GET`  
 **Description**: Retrieve the list of models for a specific manufacturer.
 
@@ -201,7 +303,7 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/makes"
 
 **Example Request**:
 ```bash
-curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/models?make=Ferrari"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/models?make=Ferrari&token=eyJhbG..."
 ```
 
 **Example Response**:
@@ -216,7 +318,8 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/models?m
 ```
 <br>
 
-**URL**: `/vehicle_emissions/years`  
+---
+#### `/vehicle_emissions/years`  
 **Method**: `GET`  
 **Description**: Retrieve the available years for a specific vehicle model and manufacturer.
 
@@ -226,7 +329,7 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/models?m
 
 **Example Request**:
 ```bash
-curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/years?make=Ferrari&model=F40"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/years?make=Ferrari&model=F40&token=eyJhbG..."
 ```
 
 **Example Response**:
@@ -240,7 +343,8 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/years?ma
 ```
 <br>
 
-**URL**: `/vehicle_emissions/compare`  
+---
+#### `/vehicle_emissions/compare`  
 **Method**: `GET`  
 **Description**: Serve an interactive HTML page to compare vehicle emissions.
 
@@ -248,14 +352,15 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/years?ma
 
 **Example Request**:
 ```bash
-curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/compare"
+curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/compare?token=eyJhbG..."
 ```
 
 **Example Response**:
 - Returns an HTML page (not JSON).
 <br>
 
-**URL**: `/vehicle_emissions/compare`  
+---
+#### `/vehicle_emissions/compare`  
 **Method**: `POST`  
 **Description**: Compare carbon emissions between two vehicles.
 
@@ -271,7 +376,7 @@ curl -X GET "https://carboncity-insights.onrender.com/vehicle_emissions/compare"
 
 **Example Request**:
 ```bash
-curl -X POST "http://localhost:8000/vehicle_emissions/compare" \
+curl -X POST "https://carboncity-insights.onrender.com/vehicle_emissions/compare?token=eyJhbG..." \
 -H "Content-Type: application/json" \
 -d '{
     "vehicle_1": {"make": "Ferrari", "model": "F40", "year": 1991},
@@ -306,21 +411,24 @@ curl -X POST "http://localhost:8000/vehicle_emissions/compare" \
 
 ---
 
-## Running Tests
+## Running Tests, Logging, Rate Limiting
 
-### Unit Tests
+### Running Tests
+
+#### Unit Tests
+
 Run unit tests for core functionalities:
 ```bash
 PYTHONPATH=. pytest tests/test_routes/
 ```
 
-### Integration Tests
+#### Integration Tests
 Run tests for database interactions and endpoint integration:
 ```bash
 PYTHONPATH=. pytest tests/test_services/
 ```
 
-### All Tests
+#### All Tests
 Run all tests:
 ```bash
 PYTHONPATH=. pytest
@@ -331,12 +439,56 @@ PYTHONPATH=. pytest
 
 ## Logging
 
-Logs are stored in the `log/` directory and include details about API requests, database interactions, and errors.<br>
-You can configure logging levels :
- - **INFO**: Logs successful operations.
- - **ERROR**: Logs issues during execution.
+Logs are stored in the `log/` directory and provide details about:
+- **API requests**: Including response times and endpoints hit.
+- **Database interactions**: Query execution times and errors.
+- **Redis operations**: Cache hits/misses and rate-limiting details.
+- **Error tracking**: Stack traces for debugging.
+Log levels can be configured as `INFO` or `ERROR`.
+
+
 <br>
 <br>
+
+---
+
+## Rate Limiting
+
+Rate limiting is implemented using Redis to prevent abuse and ensure fair usage. Default limits:
+- **10 requests per minute** for general API endpoints.
+- **5 requests per minute** for heavy endpoints like `/compare`.
+
+### Why Redis for Rate Limiting?
+Redis was chosen for its high-speed in-memory operations, making it ideal for real-time rate limiting. Its ability to handle expiring keys ensures that rate limit windows reset efficiently without additional cleanup logic. Moreover, Redis supports atomic operations, which guarantees accuracy even under heavy concurrent requests.
+
+### How Rate Limiting Protects the API
+Rate limiting ensures that the API is not overwhelmed by excessive requests from a single user or malicious bots. By capping the number of requests allowed within a given time window:
+- It mitigates the risk of **DDoS attacks** by throttling abusive clients.
+- It ensures fair resource allocation among all users.
+- It preserves the server's performance, especially for computationally intensive endpoints like `/compare`.
+
+### Configurable Rate Limiting Parameters
+The rate limiting thresholds can be adjusted using the following environment variables in the `.env` file:
+- `RATE_LIMIT_GENERAL`: Maximum requests allowed per minute for general endpoints (default: 10).
+- `RATE_LIMIT_HEAVY`: Maximum requests allowed per minute for heavy endpoints like `/compare` (default: 5).
+- `RATE_LIMIT_WINDOW`: Duration of the rate limiting window in seconds (default: 60).
+
+Example:
+```bash
+RATE_LIMIT_GENERAL=20
+RATE_LIMIT_HEAVY=10
+RATE_LIMIT_WINDOW=120
+```
+
+These values can be modified to suit the expected traffic and resource allocation needs of the API.
+
+### Response on Limit Exceeded
+```bash
+HTTP/1.1 429 Too Many Requests
+{
+    "detail": "You have reached the limit of requests allowed per minute. Please wait one minute and try again later."
+}
+```
 
 ---
 
