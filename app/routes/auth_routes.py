@@ -85,7 +85,12 @@ class UserLogin(BaseModel):
     password: str
 
 
-@auth_router.post("/register")
+@auth_router.post(
+    "/register",
+    summary="User Registration",
+    description="Register a new user by providing a username, email, and password.",
+    tags=["Authentication"],
+)
 async def register_user(user: UserCreate):
     """
     Register a new user in the system.
@@ -135,7 +140,13 @@ async def register_user(user: UserCreate):
     return {"message": "User registered successfully"}
 
 
-@auth_router.post("/login")
+@auth_router.post(
+    "/login",
+    summary="User Login",
+    description="Authenticate a user using their username and password, "
+    "and return a JWT access token.",
+    tags=["Authentication"],
+)
 async def login_user(user: UserLogin):
     """
     Authenticate a user and generate a JWT token.
@@ -170,7 +181,13 @@ async def login_user(user: UserLogin):
     }
 
 
-@auth_router.get("/login", response_class=HTMLResponse)
+@auth_router.get(
+    "/login",
+    response_class=HTMLResponse,
+    summary="Serve Login Page",
+    description="Serve the login HTML page from the static directory.",
+    tags=["Authentication"],
+)
 async def login_page():
     """
     Serve the login HTML page.
@@ -194,7 +211,13 @@ async def login_page():
         )
 
 
-@auth_router.get("/register", response_class=HTMLResponse)
+@auth_router.get(
+    "/register",
+    response_class=HTMLResponse,
+    summary="Serve Registration Page",
+    description="Serve the registration HTML page from the static directory.",
+    tags=["Authentication"],
+)
 async def register_page():
     """
     Serve the registration HTML page.
