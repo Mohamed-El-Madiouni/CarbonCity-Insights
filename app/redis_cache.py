@@ -44,7 +44,7 @@ load_dotenv()
 REDIS_URL = os.getenv("REDIS_URL", None)
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_CACHE_EXPIRE = int(os.getenv("REDIS_CACHE_EXPIRE", "2160000"))  # 25 days
+REDIS_CACHE_EXPIRE = int(os.getenv("REDIS_CACHE_EXPIRE", "600"))
 
 
 class RedisCache:

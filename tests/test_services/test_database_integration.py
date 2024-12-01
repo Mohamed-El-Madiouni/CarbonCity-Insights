@@ -95,5 +95,5 @@ async def test_redis_cache_mock(redis_cache):
     # Testing caching
     await redis_cache.set("test_key", {"key": "new_value"})
     redis_cache.redis.set.assert_called_with(
-        "test_key", '{"key": "new_value"}', ex=2160000
+        "test_key", '{"key": "new_value"}', ex=600
     )
