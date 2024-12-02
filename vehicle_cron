@@ -1,0 +1,2 @@
+0 1 1 * * /usr/local/bin/python /app/app/services/vehicle_data_service.py >> /app/log/vehicle_cron.log 2>&1
+

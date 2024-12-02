@@ -58,8 +58,8 @@ async def test_rate_limit_reset(test_client, test_token, redis_cache):
     response = await test_client.get(f"/vehicle_emissions?token={test_token}")
     assert response.status_code == 429
 
-    # Wait for the window to reset (3 seconds)
-    await asyncio.sleep(3)
+    # Wait for the window to reset (5 seconds)
+    await asyncio.sleep(5)
 
     # Check that the key has expired (TTL should be -2 or the key should be absent)
     ttl_after_sleep = await redis_cache.redis.ttl(

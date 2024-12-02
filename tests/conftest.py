@@ -49,14 +49,14 @@ async def redis_cache():
         Simulates retrieving the TTL of a key. Returns -2 if the key has expired.
         """
         if key in redis_storage:
-            return 3  # Initially set TTL
+            return 5  # Initially set TTL
         return -2  # Indicates that the key has expired
 
     async def expire_side_effect(key, ttl):
         """
         Simulates setting a TTL on a key. Deletes the key after expiration.
         """
-        ttl_to_use = 3 if os.getenv("APP_ENV") == "test" else ttl
+        ttl_to_use = 5 if os.getenv("APP_ENV") == "test" else ttl
         if key in redis_storage:
             # Launch an asynchronous task to delete the key after the TTL
             task = asyncio.create_task(simulate_key_expiration(key, ttl_to_use))
