@@ -3,6 +3,14 @@
 `CarbonCity Insights` is a comprehensive data engineering and API development project designed to provide vehicle emission insights. It includes features such as user authentication, advanced rate limiting, caching, interactive interfaces, and integration with external APIs for environmental data.
 
 ---
+
+## Quick Access
+
+Want to explore the API without reading the entire README?  
+Jump directly to the **[API Documentation](#api-documentation)** section for a detailed guide on how to use the API.
+
+---
+
 ## Table of Contents
 
 1. [Features](#features)
@@ -17,7 +25,8 @@
 8. [Running Tests](#running-tests)
 9. [Logging](#logging)
 10. [Rate Limiting](#rate-limiting)
-11. [Contributing](#contributing)
+11. [Scheduled Task with Docker](#scheduled-task-with-docker)
+12. [Contributing](#contributing)
 <br>
 <br>
 ---
@@ -33,6 +42,8 @@
 7. Asynchronous processing and caching for performance optimization.
 8. CI/CD pipelines with linting, formatting, and testing using GitHub Actions.
 9. Detailed logging for debugging and performance monitoring.
+10. Automated monthly updates using a containerized cron job, deployed locally via Docker and hosted in the cloud using Railway.app.
+
 
 ---
 
@@ -48,6 +59,9 @@
 - **Pydantic**: For data validation and schema enforcement.
 - **JWT**: JSON Web Tokens for secure user authentication.
 - **HTML/CSS/JavaScript**: For user-facing interfaces like login, registration, and vehicle emissions comparison.
+- **Docker**: Containerization for local and cloud-based scheduled tasks.
+- **Railway.app**: Cloud hosting platform for automated task execution and container orchestration.
+
 <br>
 <br>
 
@@ -57,8 +71,9 @@
 
 1. Develop a scalable API aggregating vehicle emissions data from external APIs and storing it efficiently.
 2. Implement advanced data engineering practices, including caching, monitoring, and database optimization.
-3. Provide a feature-rich comparison interface for analyzing carbon emissions.
-4. Showcase rate-limiting, authentication, and real-world data fetching pipelines.
+3. Ensure reliable and automated updates to the vehicle emissions data using a containerized solution with scheduled tasks, both locally and in the cloud (via Railway.app).
+4. Provide a feature-rich comparison interface for analyzing carbon emissions. 
+5. Showcase rate-limiting, authentication, and real-world data fetching pipelines.
 
 <br>
 <br>
@@ -126,6 +141,18 @@ EMAIL_PASSWORD=**************
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+### Cloud Deployment on Railway.app
+To automate the execution of scheduled tasks in the cloud, deploy the containerized application to **Railway.app**:
+1. Push your project to a GitHub repository.
+2. Go to [Railway.app](https://railway.app/) and create a new project.
+3. Link your Railway project to your GitHub repository.
+4. Railway will automatically build the Docker container using the `Dockerfile`.
+5. Ensure your environment variables (`CARBON_INTERFACE_API_KEY`, `DATABASE_URL`, etc.) are correctly set in the Railway dashboard.
+6. Set cron time in settings 
+7. The scheduled task will run automatically every month without manual intervention.
+
+
 The API documentation will be available at https://carboncity-insights.onrender.com/docs.
 <br>
 <br>
@@ -148,7 +175,8 @@ The GitHub Actions workflow (`.github/workflows/ci_cd.yaml`) automates linting, 
 
 ## API Documentation
 
-**API URL** : https://carboncity-insights.onrender.com
+**API BASE URL** : https://carboncity-insights.onrender.com <br> 
+**Note !!!** : The API might take up to 2 minutes to load if it hasn't been accessed recently, as the server enters a sleep mode to save resources. Please be patient!
 
 ---
 
@@ -489,6 +517,45 @@ HTTP/1.1 429 Too Many Requests
     "detail": "You have reached the limit of requests allowed per minute. Please wait one minute and try again later."
 }
 ```
+
+---
+
+## Scheduled Task with Docker
+
+### Objective
+This project includes a scheduled task to automatically update the carbon emissions data every month. The task is configured to run both locally (using Docker) and on Railway.app for continuous execution, even when the local machine is offline.
+
+
+### How It Works
+1. A **cron** job is configured inside the Docker container to execute the `vehicle_data_service.py` script on the 1st day of each month.
+2. The data is fetched from the Carbon Interface API and stored in the PostgreSQL database.
+3. For local testing, logs for this task are available at `/app/log/vehicle_cron.log` inside the container. 
+4. On **Railway.app**, the container is hosted online and ensures that the task is executed reliably without requiring your local machine.
+
+### Useful Commands for Local Setup
+- **Build the Docker image:**
+```bash
+docker build -t vehicle-data-service .
+```
+
+- **Run the container locally:**
+```bash
+docker run -d --name vehicle-data-service vehicle-data-service
+```
+
+- **View logs locally:**
+```bash
+docker exec -it vehicle-data-service cat /app/logs/vehicle_cron.log
+```
+
+### Logs on Railway.app
+- Railway provides a **Logs** tab where you can monitor the execution of the scheduled task and view any output or errors from the container.
+
+
+### Example Use Case
+With this setup:
+- Locally: You can test the Docker container, cron job, and script functionality.
+- On Railway.app: The service is hosted in the cloud, ensuring that the data update task runs autonomously and reliably every month.
 
 ---
 
