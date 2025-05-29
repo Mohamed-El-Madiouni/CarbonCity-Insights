@@ -428,7 +428,7 @@ curl -X POST "https://carboncity-insights.onrender.com/vehicle_emissions/compare
     "carbon_emission_g": 69026.0
   },
   "comparison": {
-    "message": "Ferrari F40 (1991) consumption : 42477.0 g/100km.<br><br>Ferrari Ferrari F50 (1995) consumption : 69026.0 g/100km.<br><br>So the Ferrari F40 (1991) emits 38.46% less carbon compared to the Ferrari Ferrari F50 (1995).",
+    "message": "Ferrari F40 (1991) emissions : 42477.0 g/100km.<br><br>Ferrari Ferrari F50 (1995) emissions : 69026.0 g/100km.<br><br>So the Ferrari F40 (1991) emits 38.46% less carbon compared to the Ferrari Ferrari F50 (1995).",
     "percentage_difference": 38.46
   }
 }

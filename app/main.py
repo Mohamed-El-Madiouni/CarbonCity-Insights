@@ -2,7 +2,7 @@
 Main module for the CarbonCity Insights API.
 
 This module initializes the FastAPI application and defines the root endpoint.
-The API provides insights into city-level carbon emissions and energy consumption.
+The API provides insights into city-level carbon emissions and energy emissions.
 
 Attributes:
     app (FastAPI): The main application instance for CarbonCity Insights.

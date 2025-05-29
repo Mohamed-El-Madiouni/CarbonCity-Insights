@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!--TOKEN_PLACEHOLDER-->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Emissions Comparison</title>
@@ -73,12 +74,7 @@
     <script>
         // Extract token dynamically from the current URL
         const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token'); // Get the token parameter from the URL
-
-        if (!token) {
-            console.error("No token found in the URL. Please include a token as a query parameter.");
-            alert("Access denied: Token missing.");
-        }
+        const token = null; // will be injected server-side
 
         console.log("Token extracted from URL:", token); // Log the token for debugging
 
@@ -88,11 +84,7 @@
             try {
                 let response;
                 // Determine how to construct the URL based on the endpoint
-                if (endpoint === "makes") {
-                    response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}?token=${token}`);
-                } else {
-                    response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}&token=${token}`);
-                }
+                response = await fetch(`https://carboncity-insights.onrender.com/vehicle_emissions/${endpoint}${endpoint.includes("?") ? "&" : "?"}token=${token}`);
 
                 if (!response.ok) {
                     console.error(`Failed to fetch options for ${endpoint}. Status: ${response.status}`);

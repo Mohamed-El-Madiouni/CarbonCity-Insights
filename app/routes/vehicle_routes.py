@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from app.database import database
 from app.redis_cache import redis_cache
-from app.utils import decode_access_token, serialize_data
+from app.utils import decode_access_token, serialize_data, create_access_token
 
 # Configure log directory
 log_dir = os.path.abspath(os.path.join(__file__, "../../../log"))
@@ -439,9 +439,9 @@ async def compare_vehicles(
         # Construct a summary message
         message = (
             f"{vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
-            f"({vehicle_1['year']}) consumption : {vehicle_1['carbon_emission_g']} g/100km.<br><br>"
+            f"({vehicle_1['year']}) emissions : {vehicle_1['carbon_emission_g']} g/100km.<br><br>"
             f"{vehicle_2['vehicle_make_name']} {vehicle_2['vehicle_model_name']} "
-            f"({vehicle_2['year']}) consumption : {vehicle_2['carbon_emission_g']} g/100km.<br><br>"
+            f"({vehicle_2['year']}) emissions : {vehicle_2['carbon_emission_g']} g/100km.<br><br>"
             f"So the {vehicle_1['vehicle_make_name']} {vehicle_1['vehicle_model_name']} "
             f"({vehicle_1['year']}) emits {abs(percentage_difference)}% "
             f"{'more' if emissions_1 > emissions_2 else 'less'} carbon compared "
@@ -470,29 +470,24 @@ async def compare_vehicles(
     response_class=HTMLResponse,
     tags=["Vehicle Emissions"],
 )
-async def get_compare_page(token: Optional[str] = None):
+async def get_compare_page():
     """
     Endpoint to serve the interactive comparison page.
     """
-    if token:
-        routes_logger.info("Token provided by URL")
-        payload = decode_access_token(token)
-        if not payload:
-            routes_logger.info("Invalid or expired token")
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
+    routes_logger.info("GET /vehicle_emissions/compare called")
 
-        routes_logger.info("GET /vehicle_emissions/compare called")
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        index_path = os.path.join(current_dir, "../static/index.html")
-        try:
-            with open(index_path, "r", encoding="utf-8") as file:
-                html_content = file.read()
-            return HTMLResponse(content=html_content)
-        except FileNotFoundError as e:
-            routes_logger.error("Error: index.html not found: %s", e)
-            return HTMLResponse(content="Error: index.html not found", status_code=404)
-    routes_logger.info("Not authenticated, No token provided")
-    raise HTTPException(status_code=401, detail="Not authenticated, No token provided")
+    token = create_access_token({"sub": "public_frontend"})
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    index_path = os.path.join(current_dir, "../static/index.html")
+    try:
+        with open(index_path, "r", encoding="utf-8") as file:
+            html_content = file.read()
+        html_content = html_content.replace("const token = null;", f'const token = "{token}";')
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError as e:
+        routes_logger.error("Error: index.html not found: %s", e)
+        return HTMLResponse(content="Error: index.html not found", status_code=404)
 
 
 async def set_cache(cache_key: str, data):
